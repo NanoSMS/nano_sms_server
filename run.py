@@ -455,6 +455,9 @@ def sms_ahoy_reply():
                 send_xrb(get_address(dest_address), amount, account, from_number[4:])
             else:
                 print("Error")
+                resp = MessagingResponse()
+                resp.message("Error: Incorrect destination address/number")
+                return str(resp)
 
             resp = MessagingResponse()
             resp.message("Sent!" + ", New Code: " + str(new_authcode))
