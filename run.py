@@ -424,7 +424,7 @@ def sms_ahoy_reply():
         resp = MessagingResponse()
 
         # Add a message
-        resp.message("Balance: " + str(balance) + " naneroos" + ", New Code: " + str(new_authcode))
+        resp.message("Balance: " + str(balance) + " nanos" + ", New Code: " + str(new_authcode))
 
     elif 'send' in text_body:
         print('Found send')
