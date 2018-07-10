@@ -314,7 +314,7 @@ def get_previous(account):
        return previous
 
 def get_balance(hash):
-    #Get pending blocks
+    #Get balance from hash
     ws = create_connection('ws://yapraiwallet.space:8000')
     data = json.dumps({'action' : 'block', 'hash' : hash})
 
@@ -349,11 +349,13 @@ def sms_ahoy_reply():
 
     print(request.values)
     from_number = request.values.get('From')
+    from_country = request.values.get('FromCountry')
+
     user_details = user_table.find_one(number=from_number)
     print(user_details)
 
     if user_details == None:
-        authcode = (random.SystemRandom().randint(100,9999))
+        authcode = (random.SystemRandom().randint(1000,9999))
         user_table.insert(dict(number=from_number, time=int(time.time()), count=1, authcode=authcode, claim_last=0))
         user_details = user_table.find_one(number=from_number)    
     else:
@@ -367,34 +369,34 @@ def sms_ahoy_reply():
     if 'register' in text_body:
         print('Found register')
         
-        account = get_address(from_number[4:])
+        account = get_address(user_details['id'])
         # Start our response
         resp = MessagingResponse()
 
         # Add a message
-        resp.message("Welcome to NanoSMS, your address:\n" +  account + ", New Code: " + str(new_authcode))
+        resp.message("Welcome to NanoSMS, your address:\n" +  account + ", Code: " + str(new_authcode))
 
     elif 'details' in text_body:
         print('Found help')
         resp = MessagingResponse()
-        resp.message("balance - get your balance\n send - send Nano\n address - your nano address" + ", New Code: " + str(new_authcode))
+        resp.message("balance - get your balance\n send - send Nano\n address - your nano address" + ", Code: " + str(new_authcode))
 
     elif 'address' in text_body:
         print('Found address')
-        account = get_address(from_number[4:])
+        account = get_address(user_details['id'])
         resp = MessagingResponse()
-        resp.message(account  + ", New Code: " + str(new_authcode))
+        resp.message(account  + ", Code: " + str(new_authcode))
 
     elif 'history' in text_body:
         print('Found address')
-        account = get_address(from_number[4:])
+        account = get_address(user_details['id'])
         resp = MessagingResponse()
-        resp.message("https://www.nanode.co/account/" + account + ", New Code: " + str(new_authcode))
+        resp.message("https://www.nanode.co/account/" + account + ", Code: " + str(new_authcode))
 
     elif 'balance' in text_body:
         print('Found balance')
 
-        account = get_address(from_number[4:])
+        account = get_address(user_details['id'])
         print(account)
         previous = get_previous(str(account))
         print(previous)
@@ -403,7 +405,7 @@ def sms_ahoy_reply():
         pending = get_pending(str(account))
         if (len(previous) == 0) and (len(pending) > 0):
             print("Opening Account")
-            open_xrb(int(from_number[4:]), account)
+            open_xrb(int(user_details['id']), account)
 
         print("Rx Pending: ", pending)
         pending = get_pending(str(account))
@@ -412,11 +414,12 @@ def sms_ahoy_reply():
         while len(pending) > 0:
             pending = get_pending(str(account))
             print(len(pending))
-            receive_xrb(int(from_number[4:]), account)
+            receive_xrb(int(user_details['id']), account)
 
         if len(previous) == 0:
             balance = "Empty"
         else:
+            previous = get_previous(str(account))
             balance = int(get_balance(previous)) / 1000000000000000000000000
 
         print(balance)
@@ -424,11 +427,11 @@ def sms_ahoy_reply():
         resp = MessagingResponse()
 
         # Add a message
-        resp.message("Balance: " + str(balance) + " nanos" + ", New Code: " + str(new_authcode))
+        resp.message("Balance: " + str(balance) + " nanos" + ", Code: " + str(new_authcode))
 
     elif 'send' in text_body:
         print('Found send')
-        account = get_address(from_number[4:])
+        account = get_address(user_details['id'])
         components = text_body.split(" ")
 
         # Check amount is real
@@ -444,23 +447,55 @@ def sms_ahoy_reply():
         if authcode  == int(user_details['authcode']):
             if destination[0] == "x":
                 print("xrb addresses")
-                send_xrb(destination, amount, account, from_number[4:])
-            elif destination[0] == "0" or destination[0] == "+":
-                print("telephone")
-                if destination[0] == "+":
-                    dest_address = destination[4:]
-                if destination[0] == "0":
-                    dest_address = destination[2:]
+                send_xrb(destination, amount, account, user_details['id'])
+                resp = MessagingResponse()
+                resp.message("Sent!" + ", Code: " + str(new_authcode))
+                return str(resp)
 
-                send_xrb(get_address(dest_address), amount, account, from_number[4:])
+            elif from_country == 'US':
+                print("US telephone")
+
+                if len(destination) == 12 and destination[0] == "+":
+                    dest_address = destination
+                elif len(destination) == 11 and destination[0] == "1":
+                    dest_address = '+' + str(destination)
+                elif len(destination) == 10:
+                    dest_address = '+1' + str(destination)
+                else:
+                    resp = MessagingResponse()
+                    resp.message("Error: Incorrect Destination")
+                    return str(resp)
+
+            elif from_country == 'GB':
+                print("GB telephone: " +  str(len(destination)) + " " + str(destination))
+
+                if len(destination) == 13 and destination[:3] == "+44":
+                    dest_address = destination
+                elif len(destination) == 11 and destination[:2] == "07":
+                    dest_address = '+44' + str(destination[1:])
+                else:
+                    resp = MessagingResponse()
+                    resp.message("Error: Incorrect Destination")
+                    return str(resp)
+
             else:
                 print("Error")
                 resp = MessagingResponse()
                 resp.message("Error: Incorrect destination address/number")
                 return str(resp)
 
+            dest_user_details = user_table.find_one(number=dest_address)
+            print(dest_user_details)
+
+            if dest_user_details == None:
+                user_table.insert(dict(number=dest_address, time=0, count=0, authcode=0, claim_last=0))
+                dest_user_details = user_table.find_one(number=dest_address)
+
+            send_xrb(get_address(dest_user_details['id']), amount, account, user_details['id'])
+
             resp = MessagingResponse()
-            resp.message("Sent!" + ", New Code: " + str(new_authcode))
+            resp.message("Sent!" + ", Code: " + str(new_authcode))
+
         else:
             resp = MessagingResponse()
             resp.message("Error: Incorrect Auth Code")
@@ -468,7 +503,7 @@ def sms_ahoy_reply():
 
     elif 'claim' in text_body:
         print("Found claim")
-        account = get_address(from_number[4:])
+        account = get_address(user_details['id'])
         current_time = int(time.time())
         if current_time > (int(user_details['claim_last']) + 86400):
             print("They can claim")
@@ -477,7 +512,7 @@ def sms_ahoy_reply():
             user_table.update(dict(number=from_number, claim_last=int(time.time())), ['number'])
 
             resp = MessagingResponse()
-            resp.message("Claim Success\nAD1: check out localnanos to exchange nano/VEF\nAD2: Cerveza Polar 6 for 1Nano at JeffMart, 424 Caracas\n" + "New Code: " + str(new_authcode))
+            resp.message("Claim Success (10 nanos)\nAD1: check out localnanos to exchange nano/VEF\nAD2: Cerveza Polar 6 for 1Nano at JeffMart, 424 Caracas\n" + "Code: " + str(new_authcode))
         else:
             resp = MessagingResponse()
             resp.message("Error: Claim too soon")
