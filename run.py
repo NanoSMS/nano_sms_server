@@ -191,6 +191,44 @@ def sms_ahoy_reply():
             resp = MessagingResponse()
             resp.message("Error: Claim too soon")
             return str(resp)
+
+    elif 'trust' in text_body:
+        # Only works with local numbers. Do not supply country code.
+        print("Found trust")
+        components = text_body.split(" ")
+
+        authcode = int(components[3])
+        if authcode == int(user_details['authcode']):
+            if "x" in components[1][0]:
+                try:
+                    if nano.xrb_account(components[1]):
+                        xrb_trust = components[1]
+                        resp = MessagingResponse()
+                        resp.message("Trust address set to" + components[1] + str(new_authcode))
+                        user_table.update(dict(trust_address=xrb_trust, trust_number=0))
+                    else:
+                        print("Invalid address")
+                        resp = MessagingResponse()
+                        resp.message("Invalid address" + str(new_authcode))
+                except KeyError:
+                    print("Invalid address")
+                    resp = MessagingResponse()
+                    resp.message("Invalid address" + str(new_authcode))
+            elif components[1].isdigit():
+                trust_number = components[1]
+                resp = MessagingResponse()
+                resp.message("Trust address set to" + components[1] + str(new_authcode))
+                user_table.update(dict(trust_address="", trust_number=trust_number))
+            else:
+                print("No valid trust")
+                resp = MessagingResponse()
+                resp.message("No valid trust" + str(new_authcode))
+        else:
+            resp = MessagingResponse()
+            resp.message("Error: Incorrect Auth Code")
+            return str(resp)
+
+
     else:
         print('Error')
 
