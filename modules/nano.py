@@ -5,7 +5,7 @@ import binascii
 from bitstring import BitArray
 from pyblake2 import blake2b
 from pure25519 import ed25519_oop as ed25519
-
+import settings
 
 def private_public(private):
     return ed25519.SigningKey(private).get_verifying_key().to_bytes()
@@ -92,7 +92,7 @@ def account_xrb(account):
         encode_account += account_lookup[account.bin[ x *5: x * 5 +5]]
 
     # build final address string
-    return 'xrb_ ' +encode_account +encode_check
+    return 'xrb_' +encode_account +encode_check
 
 
 def seed_account(seed, index):
