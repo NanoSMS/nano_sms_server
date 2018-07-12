@@ -9,20 +9,21 @@ def multiple_replace(string, rep_dict):
 
 
 # Validates numbers according to countrycodes.py
-def validate_number(from_country, number):
+def validate_number(country, number):
     number = multiple_replace(number, readability_chars)
-    country_code = all_codes[from_country]
+    country_code = all_codes[country]
 
-    # ToDo Send to other countries than own
     if "+" in number:
-        number = number[len(country_code):]
-        return len(number) == all_length[from_country]+len(country_code)
+        number = number.replace("+", "")
+        # Find country code
 
-    if len(number) == all_length[from_country]:
+        return len(number) == all_length[country]+len(country_code)
+
+    if len(number) == all_length[country]:
         return True
 
-    if len(number) == all_length[from_country]+len(country_code):
-        if number[0] == country_code:
+    if len(number) == all_length[country]+len(country_code):
+        if number[:len(country_code)] == country_code:
             return True
     return False
 
@@ -33,7 +34,6 @@ def number_real(from_country, destination):
     destination = multiple_replace(destination, readability_chars)
 
     if '+' in destination[0]:
-        # Todo: Find which country to send to and check for their valid number
         if destination[1:].replace(" ", "").isdigit():
             return destination
         else:
@@ -54,6 +54,9 @@ def number_real(from_country, destination):
 if __name__ == "__main__":
     user_input1 = input("from_country: ")
     user_input2 = input("destination: ")
+
+    # Usage
+
     if validate_number(user_input1, user_input2):
         print(number_real(user_input1, user_input2))
     else:
