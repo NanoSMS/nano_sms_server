@@ -3,9 +3,7 @@ from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 from websocket import create_connection
 import binascii, dataset
-from bitstring import BitArray
-from pyblake2 import blake2b
-from pure25519 import ed25519_oop as ed25519
+import phonenumbers
 
 # Importing settings file
 import settings
@@ -128,36 +126,19 @@ def sms_ahoy_reply():
                 resp.message("Sent!" + ", Code: " + str(new_authcode))
                 return str(resp)
 
-            elif from_country == 'US':
-                print("US telephone")
-
-                if len(destination) == 12 and destination[0] == "+":
-                    dest_address = destination
-                elif len(destination) == 11 and destination[0] == "1":
-                    dest_address = '+' + str(destination)
-                elif len(destination) == 10:
-                    dest_address = '+1' + str(destination)
-                else:
-                    resp = MessagingResponse()
-                    resp.message("Error: Incorrect Destination")
-                    return str(resp)
-
-            elif from_country == 'GB':
-                print("GB telephone: " +  str(len(destination)) + " " + str(destination))
-
-                if len(destination) == 13 and destination[:3] == "+44":
-                    dest_address = destination
-                elif len(destination) == 11 and destination[:2] == "07":
-                    dest_address = '+44' + str(destination[1:])
-                else:
-                    resp = MessagingResponse()
-                    resp.message("Error: Incorrect Destination")
-                    return str(resp)
-
             else:
-                print("Error")
+                try:
+                    phonenum = phonenumbers.parse(destination, from_country)
+                    dest_address = phonenumbers.format_number(phonenum, phonenumbers.PhoneNumberFormat.E164)
+                except phonenumbers.phonenumberutil.NumberParseException:
+                    print("Error")
+                    resp = MessagingResponse()
+                    resp.message("Error: Incorrect destination address/number")
+                    return str(resp)
+
+            if not phonenumbers.is_possible_number(phonenum):
                 resp = MessagingResponse()
-                resp.message("Error: Incorrect destination address/number")
+                resp.message("Error: Incorrect destination")
                 return str(resp)
 
             dest_user_details = user_table.find_one(number=dest_address)
