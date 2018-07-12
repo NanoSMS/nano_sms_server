@@ -38,7 +38,7 @@ def sms_ahoy_reply():
     text_body = request.values.get('Body')
     text_body = text_body.lower()
 
-    new_authcode = (random.SystemRandom().randint(100,9999))
+    new_authcode = (random.SystemRandom().randint(1000,9999))
 
     if 'register' in text_body:
         print('Found register')
@@ -117,6 +117,8 @@ def sms_ahoy_reply():
             return str(resp)
 
         destination = components[2]
+        destination = destination.replace("\u202d", "")
+        destination = destination.replace("\u202c", "")
         authcode = int(components[3])
         if authcode == int(user_details['authcode']):
             if destination[0] == "x":
