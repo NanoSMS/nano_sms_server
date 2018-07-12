@@ -199,15 +199,15 @@ def sms_ahoy_reply():
         print("Found trust")
         components = text_body.split(" ")
 
-        authcode = int(components[3])
+        authcode = int(components[2])
         if authcode == int(user_details['authcode']):
             if "x" in components[1][0]:
                 try:
                     if nano.xrb_account(components[1]):
                         xrb_trust = components[1]
                         resp = MessagingResponse()
-                        resp.message("Trust address set to" + components[1] + str(new_authcode))
-                        user_table.update(dict(trust_address=xrb_trust, trust_number=0))
+                        resp.message("Trust address set to " + components[1] + " Code:" +  str(new_authcode))
+                        user_table.update(dict(trust_address=xrb_trust, trust_number=0), ['id'])
                     else:
                         print("Invalid address")
                         resp = MessagingResponse()
@@ -219,8 +219,8 @@ def sms_ahoy_reply():
             elif components[1].isdigit():
                 trust_number = components[1]
                 resp = MessagingResponse()
-                resp.message("Trust address set to" + components[1] + str(new_authcode))
-                user_table.update(dict(trust_address="", trust_number=trust_number))
+                resp.message("Trust address set to " + components[1] + " Code: " + str(new_authcode))
+                user_table.update(dict(trust_address="", trust_number=trust_number), ['id'])
             else:
                 print("No valid trust")
                 resp = MessagingResponse()
