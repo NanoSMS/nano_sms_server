@@ -4,7 +4,7 @@ from websocket import create_connection
 import binascii
 from bitstring import BitArray
 from pyblake2 import blake2b
-from pure25519 import ed25519_oop as ed25519
+from pure25519_b import ed25519_oop as ed25519
 import settings
 
 def private_public(private):
