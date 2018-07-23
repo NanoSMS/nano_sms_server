@@ -3,6 +3,5 @@ Flask
 twilio
 websocket_client
 pyblake2
-pure25519
 dataset
 phonenumbers
