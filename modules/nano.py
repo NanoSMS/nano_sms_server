@@ -259,7 +259,7 @@ class NanoFunctions:
 
         account_key = BitArray(h.digest())
 
-        return account_key.bytes, self.private_jto_public(account_key.bytes)
+        return account_key.bytes, self.private_to_public(account_key.bytes)
 
     def sign_block(self, private_key, account, previous, representative, balance, link):
         
