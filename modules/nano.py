@@ -287,7 +287,7 @@ class NanoFunctions:
         p = preamble + account + previous + representative + balance + link
         bh.update(p)
 
-        sig = ed25519.sign(bh.digest(), priv_key+pub_key)
+        sig = ed25519.SigningKey(priv_key + pub_key).sign(bh.digest())
         return sig.hex().upper()[:128]
         
     def work_threshold(self, check): 
