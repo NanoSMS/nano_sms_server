@@ -20,3 +20,9 @@ class User(BaseModel):
 
     trust_address = CharField(null=True)
     trust_phonenumber = CharField(null=True)
+
+tables = [User]
+
+
+if __name__ == "__main__":
+    db.create_tables(tables)
