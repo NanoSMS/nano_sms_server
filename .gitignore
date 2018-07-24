@@ -111,3 +111,6 @@ venv.bak/
 
 # idea
 .idea
+
+# database
+database.db
