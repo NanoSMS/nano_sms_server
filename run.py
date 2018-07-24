@@ -13,8 +13,8 @@ from twilio.twiml.messaging_response import MessagingResponse
 
 db.connect()
 
-# db = dataset.connect('sqlite:///users.db')
-user_table = db['user']
+#db = dataset.connect('sqlite:///users.db')
+#user_table = db['user']
 
 app = Flask(__name__)
 
@@ -283,3 +283,4 @@ if __name__ == "__main__":
         nano.receive_xrb(int(10), account)
 
     app.run(debug=True, host="0.0.0.0", port=5002)
+
