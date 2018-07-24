@@ -1,7 +1,7 @@
 from peewee import *
 
 
-db = "" # Database system here
+db = SqliteDatabase("../users.db")  # Database system here
 
 
 class BaseModel(Model):
@@ -20,6 +20,7 @@ class User(BaseModel):
 
     trust_address = CharField(null=True)
     trust_phonenumber = CharField(null=True)
+
 
 tables = [User]
 
