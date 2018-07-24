@@ -34,7 +34,7 @@ def sms_ahoy_reply():
             phonenumber=from_number,
             time=datetime.now(),
             count=1,
-            auth=authcode,
+            authcode=authcode,
             claim_last=0)
     else:
         print(
