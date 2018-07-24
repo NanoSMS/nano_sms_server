@@ -29,13 +29,15 @@ def sms_ahoy_reply():
     user_details = User.get_or_none(User.phonenumber == from_number)
     if user_details is None:  # User is not found in the database
         print(f'{from_number} is not in database.')
-        authcode = (random.SystemRandom().randint(1000, 9999))
+        authcode = random.SystemRandom().randint(1000, 9999)
+        rec_word = ''.join(random.sample(open("english.txt").read().split(),5))
         user_details = User.create(
             phonenumber=from_number,
             time=datetime.now(),
             count=1,
-            auth=authcode,
-            claim_last=0)
+            authcode=authcode,
+            claim_last=0,
+            rec_word=rec_word)
     else:
         print(
             f'{user_details.id} - {user_details.phonenumber} sent a message.')
@@ -57,7 +59,8 @@ def sms_ahoy_reply():
 
         # Add a message
         resp.message(f'Welcome to NanoSMS, your address:\n'
-                     f'{account}, Code: {new_authcode}')
+                     f'{account}, \nCode: {new_authcode}'
+                     f'\nYour recovery phrase : {user_details.rec_word}')
 
     elif 'details' in text_body:
         print('Found help')
@@ -244,6 +247,28 @@ def sms_ahoy_reply():
             resp = MessagingResponse()
             resp.message("Error: Incorrect Auth Code")
             return str(resp)
+        
+    elif 'recover' in text_body:
+        print('Start Recovery')
+        
+        components = text_body.split(" ")
+        rec_word_rx = components[1]
+
+        # Check recovery word
+        try:
+            rec_details = User.get(User.rec_word==rec_word_rx)
+            rec_account = nano.get_address(rec_details.id)
+            
+            resp = MessagingResponse()
+            resp.message(
+                f'Recover Success! \nPhone number: {rec_details.phonenumber}\n'
+                f'Address: {rec_account}\n'
+                f'Auth Code: {rec_details.authcode}')
+
+        except:
+            resp = MessagingResponse()
+            resp.message("Error recovery phrase not recognised")
+            return str(resp)
 
     else:
         print('Error')
@@ -283,4 +308,5 @@ if __name__ == "__main__":
         nano.receive_xrb(int(10), account)
 
     app.run(debug=True, host="0.0.0.0", port=5002)
+
 
