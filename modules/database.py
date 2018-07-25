@@ -26,8 +26,14 @@ class User(BaseModel):
 
     rec_word = CharField()
 
+class TopupCards(BaseModel):
+    cardcode = CharField(unique=True)
+    cardvalue = IntegerField()
+    cardsn = CharField(unique=True)
+    claimed = BooleanField(default=False)
 
-tables = [User]
+
+tables = [User,TopupCards]
 
 
 if __name__ == "__main__":
