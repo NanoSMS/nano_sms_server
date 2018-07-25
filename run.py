@@ -293,8 +293,15 @@ def sms_ahoy_reply():
         #check card code valid
         card_valid = TopupCards.get_or_none(TopupCards.cardcode == cardcode)
         if card_valid == None:
+            print("Card code error " + cardcode)
             resp = MessagingResponse()
             resp.message("Error: Invalid Topup voucher code")
+            return str(resp)
+
+        if card_valid.claimed == True:
+            print("Card already claimed " + cardcode)
+            resp = MessagingResponse()
+            resp.message("Card has already been claimed")
             return str(resp)
 
         else:
@@ -322,6 +329,8 @@ def sms_ahoy_reply():
             print(
                 f'Success topup to {account} from topup address\n'
                 f'Address Balance {topupadd_bal-card_valid.cardvalue}')
+            card_valid.claimed = True
+            card_valid.save()
 
     else:
         print('Error ' + text_body)
@@ -361,4 +370,3 @@ if __name__ == "__main__":
         nano.receive_xrb(int(10), account)
 
     app.run(debug=True, host="0.0.0.0", port=5002)
-
