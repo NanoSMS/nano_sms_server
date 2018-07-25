@@ -332,7 +332,7 @@ class NanoFunctions:
     def get_balance(self, _hash):
 
         try:
-            account = self.rpc.block_account(_hash)
+            account         = self.rpc.block_account(_hash)["account"]
             acc_info        = self.rpc.account_info(account)
             current_balance = acc_info["balance"]
             return current_balance
