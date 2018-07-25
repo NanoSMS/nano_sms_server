@@ -315,7 +315,7 @@ class NanoFunctions:
 
         # Generate address
 
-        priv_key, pub_key = self.seed_account(settings.seed, index)
+        _, pub_key = self.seed_account(settings.seed, index)
         public_key = str(binascii.hexlify(pub_key), 'ascii')
         account = self.account_xrb(str(public_key))
         return account

@@ -8,7 +8,8 @@ import phonenumbers
 # Importing settings file
 import settings
 
-from modules.nano import NanoFunctions as nano
+from modules.nano import NanoFunctions
+nano = NanoFunctions()
 
 db = dataset.connect('sqlite:///users.db')
 user_table = db['user']
@@ -40,7 +41,7 @@ def sms_ahoy_reply():
     if 'register' in text_body:
         print('Found register')
         
-        account = nano().get_address(user_details['id'])
+        account = nano.get_address(user_details['id'])
         # Start our response
         resp = MessagingResponse()
 
@@ -54,44 +55,44 @@ def sms_ahoy_reply():
 
     elif 'address' in text_body:
         print('Found address')
-        account = nano().get_address(user_details['id'])
+        account = nano.get_address(user_details['id'])
         resp = MessagingResponse()
         resp.message(account  + ", Code: " + str(new_authcode))
 
     elif 'history' in text_body:
         print('Found address')
-        account = nano().get_address(user_details['id'])
+        account = nano.get_address(user_details['id'])
         resp = MessagingResponse()
         resp.message("https://www.nanode.co/account/" + account + ", Code: " + str(new_authcode))
 
     elif 'balance' in text_body:
         print('Found balance')
 
-        account = nano().get_address(user_details['id'])
+        account = nano.get_address(user_details['id'])
         print(account)
-        previous = nano().get_previous(str(account))
+        previous = nano.get_previous(str(account))
         print(previous)
         print(len(previous))
 
-        pending = nano().get_pending(str(account))
+        pending = nano.get_pending(str(account))
         if (len(previous) == 0) and (len(pending) > 0):
             print("Opening Account")
-            nano().open_xrb(int(user_details['id']), account)
+            nano.open_xrb(int(user_details['id']), account)
 
         print("Rx Pending: ", pending)
-        pending = nano().get_pending(str(account))
+        pending = nano.get_pending(str(account))
         print("Pending Len:" + str(len(pending)))
 
         while len(pending) > 0:
-            pending = nano().get_pending(str(account))
+            pending = nano.get_pending(str(account))
             print(len(pending))
-            nano().receive_xrb(int(user_details['id']), account)
+            nano.receive_xrb(int(user_details['id']), account)
 
         if len(previous) == 0:
             balance = "Empty"
         else:
-            previous = nano().get_previous(str(account))
-            balance = int(nano().get_balance(previous)) / 1000000000000000000000000
+            previous = nano.get_previous(str(account))
+            balance = int(nano.get_balance(previous)) / 1000000000000000000000000
 
         print(balance)
         # Start our response
@@ -102,7 +103,7 @@ def sms_ahoy_reply():
 
     elif 'send' in text_body:
         print('Found send')
-        account = nano().get_address(user_details['id'])
+        account = nano.get_address(user_details['id'])
         components = text_body.split(" ")
 
         # Check amount is real
@@ -120,7 +121,7 @@ def sms_ahoy_reply():
         if authcode == int(user_details['authcode']):
             if destination[0] == "x":
                 print("xrb addresses")
-                nano().send_xrb(destination, amount, account, user_details['id'])
+                nano.send_xrb(destination, amount, account, user_details['id'])
                 resp = MessagingResponse()
                 resp.message("Sent!" + ", Code: " + str(new_authcode))
                 return str(resp)
@@ -147,7 +148,7 @@ def sms_ahoy_reply():
                 user_table.insert(dict(number=dest_address, time=0, count=0, authcode=0, claim_last=0))
                 dest_user_details = user_table.find_one(number=dest_address)
 
-            nano().send_xrb(nano().get_address(dest_user_details['id']), amount, account, user_details['id'])
+            nano.send_xrb(nano.get_address(dest_user_details['id']), amount, account, user_details['id'])
 
             resp = MessagingResponse()
             resp.message("Sent!" + ", Code: " + str(new_authcode))
@@ -159,12 +160,12 @@ def sms_ahoy_reply():
 
     elif 'claim' in text_body:
         print("Found claim")
-        account = nano().get_address(user_details['id'])
+        account = nano.get_address(user_details['id'])
         current_time = int(time.time())
         if current_time > (int(user_details['claim_last']) + 86400):
             print("They can claim")
             amount = 10000000000000000000000000
-            nano().send_xrb(account, amount, nano().get_address(10), 10)
+            nano.send_xrb(account, amount, nano.get_address(10), 10)
             user_table.update(dict(number=from_number, claim_last=int(time.time())), ['number'])
 
             resp = MessagingResponse()
@@ -183,7 +184,7 @@ def sms_ahoy_reply():
         if authcode == int(user_details['authcode']):
             if "x" in components[1][0]:
                 try:
-                    if nano().xrb_account(components[1]):
+                    if nano.xrb_account(components[1]):
                         xrb_trust = components[1]
                         resp = MessagingResponse()
                         resp.message("Trust address set to " + components[1] + " Code:" +  str(new_authcode))
@@ -226,24 +227,24 @@ def sms_ahoy_reply():
 
 if __name__ == "__main__":
         #Check faucet address on boot to make sure we are up to date
-        account = nano().get_address(10)
+        account = nano.get_address(10)
         print(account)
-        previous = nano().get_previous(str(account))
+        previous = nano.get_previous(str(account))
         print(previous)
         print(len(previous))
 
-        pending = nano().get_pending(str(account))
+        pending = nano.get_pending(str(account))
         if (len(previous) == 0) and (len(pending) > 0):
             print("Opening Account")
-            nano().open_xrb(int(10), account)
+            nano.open_xrb(int(10), account)
 
         print("Rx Pending: ", pending)
-        pending = nano().get_pending(str(account))
+        pending = nano.get_pending(str(account))
         print("Pending Len:" + str(len(pending)))
 
         while len(pending) > 0:
-            pending = nano().get_pending(str(account))
+            pending = nano.get_pending(str(account))
             print(len(pending))
-            nano().receive_xrb(int(10), account)
+            nano.receive_xrb(int(10), account)
 
         app.run(debug=True, host="0.0.0.0", port=5002)
