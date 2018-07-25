@@ -12,7 +12,7 @@ from modules.nano import NanoFunctions
 nano = NanoFunctions(settings.uri) 
 
 #db = dataset.connect('sqlite:///users.db')
-user_table = db['user']
+#user_table = db['user']
 
 app = Flask(__name__)
 
