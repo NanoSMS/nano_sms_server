@@ -24,9 +24,17 @@ class User(BaseModel):
     trust_address = CharField(null=True)
     trust_phonenumber = CharField(null=True)
 
+    rec_word = CharField()
 
-tables = [User]
+class TopupCards(BaseModel):
+    cardcode = CharField(unique=True)
+    cardvalue = IntegerField()
+    cardsn = CharField(unique=True)
+
+
+tables = [User,TopupCards]
 
 
 if __name__ == "__main__":
     db.create_tables(tables)
+
