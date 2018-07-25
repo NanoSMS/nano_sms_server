@@ -1,23 +1,20 @@
-import json
-import random
-import time
-from datetime import datetime, timedelta
-
+import  time, json, random
+from flask import Flask, request
+from twilio.twiml.messaging_response import MessagingResponse
+from websocket import create_connection
+import binascii, dataset
 import phonenumbers
 
-import settings  # Importing settings file
-from flask import Flask, request
-from modules import nano
-from modules.database import User, db
-from twilio.twiml.messaging_response import MessagingResponse
+# Importing settings file
+import settings
 
-db.connect()
+from modules.nano import NanoFunctions
+nano = NanoFunctions(settings.uri) 
 
-# db = dataset.connect('sqlite:///users.db')
+#db = dataset.connect('sqlite:///users.db')
 user_table = db['user']
 
 app = Flask(__name__)
-
 
 @app.route("/sms", methods=['GET', 'POST'])
 def sms_ahoy_reply():
