@@ -49,7 +49,7 @@ def sms_ahoy_reply():
     text_body = request.values.get('Body')
     text_body = text_body.lower()
 
-    ref_code = (random.SystemRandom().randint(1000, 9999))
+    newauthcode = (random.SystemRandom().randint(1000, 9999))
 
     if 'register' in text_body:
         print('Found register')
@@ -59,7 +59,7 @@ def sms_ahoy_reply():
 
         # Add a message
         resp.message(f'Welcome to NanoSMS, your address:\n'
-                     f'{account}, \nReference: {ref_code}'
+                     f'{account}, \nReference: {newauthcode}'
                      f'\nYour recovery phrase : {user_details.rec_word}')
 
     elif 'details' in text_body:
@@ -67,20 +67,20 @@ def sms_ahoy_reply():
         resp = MessagingResponse()
         resp.message(f'balance - get your balance\n'
                      f'send - send Nano\n'
-                     f'address - your nano address, Reference: {ref_code}')
+                     f'address - your nano address, Reference: {newauthcode}')
 
     elif 'address' in text_body:
         print('Found address')
         account = nano.get_address(user_details.id)
         resp = MessagingResponse()
-        resp.message(f'{account}, Reference: {ref_code}')
+        resp.message(f'{account}, Reference: {newauthcode}')
 
     elif 'history' in text_body:
         print('Found address')
         account = nano.get_address(user_details.id)
         resp = MessagingResponse()
         resp.message(
-            f'https://www.nanode.co/account/{account}, Reference: {ref_code}')
+            f'https://www.nanode.co/account/{account}, Reference: {newauthcode}')
 
     elif 'balance' in text_body:
         print('Found balance')
@@ -117,7 +117,7 @@ def sms_ahoy_reply():
         resp = MessagingResponse()
 
         # Add a message
-        resp.message(f'Balance: {balance} nanos, Reference: {ref_code}')
+        resp.message(f'Balance: {balance} nanos, Reference: {newauthcode}')
 
     elif 'send' in text_body:
         print('Found send')
@@ -141,7 +141,7 @@ def sms_ahoy_reply():
                 print("xrb addresses")
                 nano.send_xrb(destination, amount, account, user_details.id)
                 resp = MessagingResponse()
-                resp.message(f'Sent!, Reference: {ref_code}')
+                resp.message(f'Sent!, Reference: {newauthcode}')
                 return str(resp)
 
             else:
@@ -176,7 +176,7 @@ def sms_ahoy_reply():
                 user_details.id)
 
             resp = MessagingResponse()
-            resp.message(f'Sent!, Reference: {ref_code}')
+            resp.message(f'Sent!, Reference: {newauthcode}')
 
         else:
             resp = MessagingResponse()
@@ -218,23 +218,23 @@ def sms_ahoy_reply():
                         xrb_trust = components[1]
                         resp = MessagingResponse()
                         resp.message("Trust address set to " + components[1] +
-                                     " Code:" + str(ref_code))
+                                     " Code:" + str(newauthcode))
                         user_details.trust_address = xrb_trust
                         user_details.trust_phonenumber = 0
                         user_details.save()
                     else:
                         print("Invalid address")
                         resp = MessagingResponse()
-                        resp.message("Invalid address" + "Reference: " + str(ref_code))
+                        resp.message("Invalid address" + "Reference: " + str(newauthcode))
                 except KeyError:
                     print("Invalid address")
                     resp = MessagingResponse()
-                    resp.message("Invalid address" + "Reference: " + str(ref_code))
+                    resp.message("Invalid address" + "Reference: " + str(newauthcode))
             elif components[1].isdigit():
                 trust_number = components[1]
                 resp = MessagingResponse()
                 resp.message(
-                    f'Trust address set to {components[1]}, Reference: {ref_code}'
+                    f'Trust address set to {components[1]}, Reference: {newauthcode}'
                 )
                 user_details.trust_address = ""
                 user_details.trust_number = trust_number
@@ -242,7 +242,7 @@ def sms_ahoy_reply():
             else:
                 print("No valid trust")
                 resp = MessagingResponse()
-                resp.message("No valid trust" + "Reference: " + str(ref_code))
+                resp.message("No valid trust" + "Reference: " + str(newauthcode))
         else:
             resp = MessagingResponse()
             resp.message("Error: Incorrect Auth Code")
@@ -279,7 +279,7 @@ def sms_ahoy_reply():
         # Add a message
         resp.message("Error")
 
-    user_details.authcode = ref_code
+    user_details.authcode = newauthcode
     user_details.save()
 
     return str(resp)
