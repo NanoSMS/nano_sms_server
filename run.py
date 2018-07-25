@@ -8,7 +8,7 @@ import phonenumbers
 import settings  # Importing settings file
 from flask import Flask, request
 from modules import nano
-from modules.database import User, db
+from modules.database import User, TopupCards, db
 from twilio.twiml.messaging_response import MessagingResponse
 
 db.connect()
@@ -40,7 +40,7 @@ def sms_ahoy_reply():
             rec_word=rec_word)
     else:
         print(
-            f'{user_details.id} - {user_details.phonenumber} sent a message.')
+            f'{user_details.id + 1} - {user_details.phonenumber} sent a message.')
         user_details.phonenumber = from_number
         user_details.time = datetime.now()
         user_details.count += 1
@@ -53,7 +53,7 @@ def sms_ahoy_reply():
 
     if 'register' in text_body:
         print('Found register')
-        account = nano.get_address(user_details.id)
+        account = nano.get_address(user_details.id + 1)
         # Start our response
         resp = MessagingResponse()
 
@@ -71,13 +71,13 @@ def sms_ahoy_reply():
 
     elif 'address' in text_body:
         print('Found address')
-        account = nano.get_address(user_details.id)
+        account = nano.get_address(user_details.id + 1)
         resp = MessagingResponse()
         resp.message(f'{account}, AuthCode: {newauthcode}')
 
     elif 'history' in text_body:
         print('Found address')
-        account = nano.get_address(user_details.id)
+        account = nano.get_address(user_details.id + 1)
         resp = MessagingResponse()
         resp.message(
             f'https://www.nanode.co/account/{account}, AuthCode: {newauthcode}')
@@ -85,7 +85,7 @@ def sms_ahoy_reply():
     elif 'balance' in text_body:
         print('Found balance')
 
-        account = nano.get_address(user_details.id)
+        account = nano.get_address(user_details.id + 1)
         print(account)
         previous = nano.get_previous(str(account))
         print(previous)
@@ -94,7 +94,7 @@ def sms_ahoy_reply():
         pending = nano.get_pending(str(account))
         if (len(previous) == 0) and (len(pending) > 0):
             print("Opening Account")
-            nano.open_xrb(int(user_details.id), account)
+            nano.open_xrb(int(user_details.id + 1), account)
 
         print("Rx Pending: ", pending)
         pending = nano.get_pending(str(account))
@@ -103,7 +103,7 @@ def sms_ahoy_reply():
         while len(pending) > 0:
             pending = nano.get_pending(str(account))
             print(len(pending))
-            nano.receive_xrb(int(user_details.id), account)
+            nano.receive_xrb(int(user_details.id + 1), account)
 
         if len(previous) == 0:
             balance = "Empty"
@@ -121,7 +121,7 @@ def sms_ahoy_reply():
 
     elif 'send' in text_body:
         print('Found send')
-        account = nano.get_address(user_details.id)
+        account = nano.get_address(user_details.id + 1)
         components = text_body.split(" ")
 
         # Check amount is real
@@ -139,7 +139,7 @@ def sms_ahoy_reply():
         if authcode == int(user_details.authcode):
             if destination[0] == "x":
                 print("xrb addresses")
-                nano.send_xrb(destination, amount, account, user_details.id)
+                nano.send_xrb(destination, amount, account, user_details.id + 1)
                 resp = MessagingResponse()
                 resp.message(f'Sent!, AuthCode: {newauthcode}')
                 return str(resp)
@@ -173,7 +173,7 @@ def sms_ahoy_reply():
 
             nano.send_xrb(
                 nano.get_address(dest_user_details.id), amount, account,
-                user_details.id)
+                user_details.id + 1)
 
             resp = MessagingResponse()
             resp.message(f'Sent!, AuthCode: {newauthcode}')
@@ -185,7 +185,7 @@ def sms_ahoy_reply():
 
     elif 'claim' in text_body:
         print("Found claim")
-        account = nano.get_address(user_details.id)
+        account = nano.get_address(user_details.id + 1)
         current_time = int(time.time())
         if int(user_details.claim_last) == 0:
             print("They can claim")
@@ -280,6 +280,48 @@ def sms_ahoy_reply():
             resp = MessagingResponse()
             resp.message("Error recovery phrase not recognised")
             return str(resp)
+
+    elif 'topup' in text_body:
+        print('Found topup request')
+
+        components = text_body.split(" ")
+        cardcode = components[1]
+
+        account = nano.get_address(user_details.id + 1)
+        current_time = int(time.time())
+
+        #check card code valid
+        card_valid = TopupCards.get_or_none(TopupCards.cardcode == cardcode)
+        if card_valid == None:
+            resp = MessagingResponse()
+            resp.message("Error: Invalid Topup voucher code")
+            return str(resp)
+
+        else:
+            topupadd = nano.get_address(1)
+            previous = nano.get_previous(str(topupadd))
+            topupadd_bal = int(nano.get_balance(previous)) / \
+                1000000000000000000000000
+            if topupadd_bal < card_valid.cardvalue:
+                print(
+                    f'Insufficient Balance\n'
+                    f'Address Balance {topupadd_bal}, Card request {card_valid.cardvalue}')
+
+            nano.send_xrb(account, card_valid.cardvalue, topupadd, 0)
+
+            previous = nano.get_previous(str(account))
+            balance = int(nano.get_balance(previous)) / \
+                1000000000000000000000000
+
+            resp = MessagingResponse()
+            resp.message(
+                    f'Topup success!\n'
+                    f'Your new account balance {balance}\n'
+                    f'AuthCode: {newauthcode}')
+
+            print(
+                f'Success topup to {account} from topup address\n'
+                f'Address Balance {topupadd_bal-card_valid.cardvalue}')
 
     else:
         print('Error ' + text_body)
