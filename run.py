@@ -59,10 +59,10 @@ def sms_ahoy_reply():
 
         # Add a message
         resp.message(f'Welcome to NanoSMS, your address:\n'
-                     f'{account}, \AuthCode: {newauthcode}'
+                     f'{account}, \nAuthCode: {newauthcode}'
                      f'\nYour recovery phrase : {user_details.rec_word}')
 
-    elif 'details' in text_body:
+    elif 'commands' in text_body:
         print('Found help')
         resp = MessagingResponse()
         resp.message(f'balance - get your balance\n'
@@ -187,22 +187,33 @@ def sms_ahoy_reply():
         print("Found claim")
         account = nano.get_address(user_details.id)
         current_time = int(time.time())
-        if current_time > (int(user_details.claim_last) + 86400):
+        if int(user_details.claim_last) == 0:
             print("They can claim")
-            amount = 10000000000000000000000000
-            nano.send_xrb(account, amount, nano.get_address(10), 10)
-            user_details.claim_last = datetime.now()
+
+            #check faucet balance
+            faucet = nano.get_address(0)
+            previous = nano.get_previous(str(faucet))
+            faucet_bal = int(nano.get_balance(previous)) / \
+                1000000000000000000000000
+
+            claim = faucet_bal*0.01
+            nano.send_xrb(account, claim, faucet, 0)
+            user_details.claim_last = 1
             user_details.save()
 
             resp = MessagingResponse()
             resp.message(
-                f'Claim Success (10 nanos)\n'
-                f'AD1: check out localnanos to exchange nano/VEF\n'
-                f'AD2: Cerveza Polar 6 for 1Nano at JeffMart, 424 Caracas\n'
+                f'Claim Success {claim}\n'
+                f'AD1: check out localnanos to exchange nano\n'
+                f'AD2: Cerveza Polar 6 for 1 Nano at JeffMart, 424 Caracas\n'
                 f'AuthCode: {newauthcode}')
+
+            print(
+                f'{claim} sent to {account} from faucet\n'
+                f'Faucet funds remaining {faucet_bal-claim}')
         else:
             resp = MessagingResponse()
-            resp.message("Error: Claim too soon")
+            resp.message("This number has already made a claim")
             return str(resp)
 
     elif 'trust' in text_body:
@@ -218,7 +229,7 @@ def sms_ahoy_reply():
                         xrb_trust = components[1]
                         resp = MessagingResponse()
                         resp.message("Trust address set to " + components[1] +
-                                     " Code:" + str(newauthcode))
+                                     " AuthCode:" + str(newauthcode))
                         user_details.trust_address = xrb_trust
                         user_details.trust_phonenumber = 0
                         user_details.save()
@@ -271,13 +282,13 @@ def sms_ahoy_reply():
             return str(resp)
 
     else:
-        print('Error')
+        print('Error ' + text_body)
 
         # Start our response
         resp = MessagingResponse()
 
         # Add a message
-        resp.message("Error")
+        resp.message("Command not recognised, send " + commands + "for a list of commands")
 
     user_details.authcode = newauthcode
     user_details.save()
@@ -287,7 +298,7 @@ def sms_ahoy_reply():
 
 if __name__ == "__main__":
     # Check faucet address on boot to make sure we are up to date
-    account = nano.get_address(10)
+    account = nano.get_address(0)
     print(account)
     previous = nano.get_previous(str(account))
     print(previous)
@@ -308,5 +319,4 @@ if __name__ == "__main__":
         nano.receive_xrb(int(10), account)
 
     app.run(debug=True, host="0.0.0.0", port=5002)
-
 
