@@ -176,8 +176,8 @@ class NanoRPC:
 
 class NanoFunctions:
 
-    def __init__(self):
-        self.rpc = NanoRPC("http://188.166.149.243:6060")
+    def __init__(self, uri):
+        self.rpc = NanoRPC(uri)
 
     def private_to_public(self, private):
         return ed25519.SigningKey(private).get_verifying_key().to_bytes()

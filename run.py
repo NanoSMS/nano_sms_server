@@ -9,7 +9,7 @@ import phonenumbers
 import settings
 
 from modules.nano import NanoFunctions
-nano = NanoFunctions()
+nano = NanoFunctions(settings.uri) 
 
 db = dataset.connect('sqlite:///users.db')
 user_table = db['user']
