@@ -7,7 +7,7 @@ from pathlib import Path
 
 def settings_file(path):
     print("Generating random seed")
-    seed = hex(random.SystemRandom().getrandbits(266))[2:].upper()
+    seed = hex(random.SystemRandom().getrandbits(256))[2:].upper()
     with open(path, "w") as file:
         file.write("""# This file was generated with setup.py
 seed = "{seed}"
