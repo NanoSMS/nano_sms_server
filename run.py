@@ -49,10 +49,21 @@ def sms_ahoy_reply():
     new_authcode = (random.SystemRandom().randint(1000, 9999))
 
     if 'register' in text_body:
-        resp = register(text_body, user_details)
+        print('Found register')
+        account = nano.get_address(user_details.id)
+        # Start our response
+        resp = MessagingResponse()
+
+        # Add a message
+        resp.message(f'Welcome to NanoSMS, your address:\n'
+                     f'{account}, Code: {new_authcode}')
 
     elif 'details' in text_body:
-        resp = details(text_body, user_details,)
+        print('Found help')
+        resp = MessagingResponse()
+        resp.message(f'balance - get your balance\n'
+                     f'send - send Nano\n'
+                     f'address - your nano address, Code: {new_authcode}')
 
     elif 'address' in text_body:
         print('Found address')
@@ -251,7 +262,7 @@ def sms_ahoy_reply():
 
 if __name__ == "__main__":
     # Check faucet address on boot to make sure we are up to date
-    # Todo, use systemuser for faucet
+    # Todo use SystemUser for faucet
     account = nano.get_address(0)
     print(account)
     previous = nano.get_previous(str(account))
