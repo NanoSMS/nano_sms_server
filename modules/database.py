@@ -26,16 +26,24 @@ class User(BaseModel):
 
     rec_word = CharField()
 
+class SystemUser(BaseModel):
+    name = CharField(unique=True)
+
+    time = DateTimeField(null=True)  # Last interaction
+    count = IntegerField(null=True)  # Number of interactions
+
 class TopupCards(BaseModel):
     cardcode = CharField(unique=True)
     cardvalue = IntegerField()
     cardsn = CharField(unique=True)
     claimed = BooleanField(default=False)
 
-
-tables = [User,TopupCards]
+tables = [SystemUser, User, TopupCards, ]
 
 
 if __name__ == "__main__":
     db.create_tables(tables)
-
+    
+    # Create system users
+    faucet = SystemUser.get_or_create(name="faucet")
+    top_up = SystemUser.get_or_create(name="top_up")
