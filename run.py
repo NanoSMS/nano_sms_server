@@ -135,7 +135,7 @@ def send(user_details, text_body):
 
         else:
             try:
-                phonenum = phonenumbers.parse(destination, from_country)
+                phonenum = phonenumbers.parse(destination, user_details.country)
                 dest_address = phonenumbers.format_number(
                     phonenum, phonenumbers.PhoneNumberFormat.E164)
             except phonenumbers.phonenumberutil.NumberParseException:
@@ -273,6 +273,7 @@ def sms_ahoy_reply():
         authcode = (random.SystemRandom().randint(1000, 9999))
         user_details = User.create(
             phonenumber=from_number,
+            country=from_country,
             time=datetime.now(),
             count=1,
             authcode=authcode,
@@ -280,6 +281,7 @@ def sms_ahoy_reply():
     else:
         print(f'{user_details.id} - {user_details.phonenumber} sent a message.')
         user_details.phonenumber = from_number
+        user_details.country = from_country
         user_details.time = datetime.now()
         user_details.count += 1
         user_details.save()
@@ -291,7 +293,7 @@ def sms_ahoy_reply():
         return str(register(user_details, text_body))
 
     elif 'details' in text_body:
-        return str(detail(user_details, text_body))
+        return str(details(user_details, text_body))
 
     elif 'address' in text_body:
         return str(address(user_details, text_body))
