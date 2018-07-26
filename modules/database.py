@@ -26,19 +26,17 @@ class User(BaseModel):
 
     rec_word = CharField()
 
-
 class SystemUser(BaseModel):
     name = CharField(unique=True)
 
     time = DateTimeField(null=True)  # Last interaction
     count = IntegerField(null=True)  # Number of interactions
 
-
 class TopupCards(BaseModel):
     cardcode = CharField(unique=True)
     cardvalue = IntegerField()
     cardsn = CharField(unique=True)
-
+    claimed = BooleanField(default=False)
 
 tables = [SystemUser, User, TopupCards, ]
 
