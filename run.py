@@ -184,7 +184,7 @@ def claim(user_details, text_body):
     current_time = int(time.time())
     if int(user_details.claim_last) == 0:
         print("They can claim")
-        #check faucet balance
+        # Check faucet balance
         previous = nano.get_previous(str(faucet.id))
         faucet_bal = int(nano.get_balance(previous)) / \
             1000000000000000000000000
@@ -200,7 +200,7 @@ def claim(user_details, text_body):
                      f'AD1: check out localnanos to exchange nano/VEF\n'
                      f'AD2: Cerveza Polar 6 for 1Nano at JeffMart, 424 Caracas\n'
                      f'Code: {new_authcode}')
-        
+
         print(f'{claim} sent to {account} from faucet\n'
               f'Faucet funds remaining {faucet_bal-claim}')
         return resp
@@ -236,7 +236,7 @@ def trust(user_details, text_body):
                     new_authcode = authcode_gen_save(user_details)
                     resp.message(f'Invalid address, Code:  {new_authcode}')
                     return resp
-    
+
             except KeyError:
                 print("Invalid address")
                 resp = MessagingResponse()
@@ -347,7 +347,6 @@ def topup(user_details, text_body):
         card_valid.save()
         return resp
 
-# Always return return.
 
 @app.route("/sms", methods=['GET', 'POST'])
 def sms_ahoy_reply():
