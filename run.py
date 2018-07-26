@@ -9,7 +9,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 
 import settings  # Importing settings file
 from modules import nano
-from modules.database import User, db
+from modules.database import SystemUser, User, db
 from modules.nano import NanoFunctions
 
 nano = NanoFunctions(settings.uri)
@@ -49,21 +49,10 @@ def sms_ahoy_reply():
     new_authcode = (random.SystemRandom().randint(1000, 9999))
 
     if 'register' in text_body:
-        print('Found register')
-        account = nano.get_address(user_details.id)
-        # Start our response
-        resp = MessagingResponse()
-
-        # Add a message
-        resp.message(f'Welcome to NanoSMS, your address:\n'
-                     f'{account}, Code: {new_authcode}')
+        resp = register(text_body, user_details)
 
     elif 'details' in text_body:
-        print('Found help')
-        resp = MessagingResponse()
-        resp.message(f'balance - get your balance\n'
-                     f'send - send Nano\n'
-                     f'address - your nano address, Code: {new_authcode}')
+        resp = details(text_body, user_details,)
 
     elif 'address' in text_body:
         print('Found address')
@@ -261,17 +250,9 @@ def sms_ahoy_reply():
 
 
 if __name__ == "__main__":
-    # Get or generate faucet User with ID = 0.
-    faucet = User.get_or_none(User.phonenumber == "Faucet")
-    if faucet is None:
-        faucet = User.create(phonenumber="Faucet", authcode=-1, time=datetime.now(), count=0)
-    print(f'Is Faucet ID = 0? {faucet.id == 0}')
-    
-    if {faucet.id == 0}:
-        input("Anything to continue: ")
-
     # Check faucet address on boot to make sure we are up to date
-    account = nano.get_address(faucet.id)
+    # Todo, use systemuser for faucet
+    account = nano.get_address(0)
     print(account)
     previous = nano.get_previous(str(account))
     print(previous)

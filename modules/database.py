@@ -24,7 +24,15 @@ class User(BaseModel):
     trust_address = CharField(null=True)
     trust_phonenumber = CharField(null=True)
 
-    rec_word = CharField(null=True)
+    rec_word = CharField()
+
+
+class SystemUser(BaseModel):
+    name = CharField(unique=True)
+
+    time = DateTimeField(null=True)  # Last interaction
+    count = IntegerField(null=True)  # Number of interactions
+
 
 class TopupCards(BaseModel):
     cardcode = CharField(unique=True)
@@ -32,9 +40,12 @@ class TopupCards(BaseModel):
     cardsn = CharField(unique=True)
 
 
-tables = [User,TopupCards]
+tables = [SystemUser, User, TopupCards, ]
 
 
 if __name__ == "__main__":
     db.create_tables(tables)
     
+    # Create system users
+    faucet = SystemUser.get_or_create(name="faucet")
+    top_up = SystemUser.get_or_create(name="top_up")
