@@ -11,11 +11,10 @@ import settings  # Importing settings file
 from modules import nano
 from modules.database import User, db
 from modules.nano import NanoFunctions
-nano = NanoFunctions(settings.uri) 
 
+nano = NanoFunctions(settings.uri)
 
 db.connect()
-
 
 app = Flask(__name__)
 
@@ -95,7 +94,7 @@ def sms_ahoy_reply():
 
         print("Rx Pending: ", pending)
         pending = nano.get_pending(str(account))
-        print("Pending Len:" + str(len(pending)))
+        print(f'Pending Len: {len(pending)}')
 
         while len(pending) > 0:
             pending = nano.get_pending(str(account))
@@ -214,19 +213,20 @@ def sms_ahoy_reply():
                     if nano.xrb_account(components[1]):
                         xrb_trust = components[1]
                         resp = MessagingResponse()
-                        resp.message("Trust address set to " + components[1] +
-                                     " Code:" + str(new_authcode))
+                        resp.message(f'Trust address set to {components[1]}'
+                                     f', Code: {new_authcode}')
+
                         user_details.trust_address = xrb_trust
                         user_details.trust_phonenumber = 0
                         user_details.save()
                     else:
                         print("Invalid address")
                         resp = MessagingResponse()
-                        resp.message("Invalid address" + str(new_authcode))
+                        resp.message(f'Invalid address, Code:  {new_authcode}')
                 except KeyError:
                     print("Invalid address")
                     resp = MessagingResponse()
-                    resp.message("Invalid address" + str(new_authcode))
+                    resp.message(f'Invalid address, Code:  {new_authcode}')
             elif components[1].isdigit():
                 trust_number = components[1]
                 resp = MessagingResponse()
@@ -239,7 +239,7 @@ def sms_ahoy_reply():
             else:
                 print("No valid trust")
                 resp = MessagingResponse()
-                resp.message("No valid trust" + str(new_authcode))
+                resp.message(f'No valid trust, Code: {new_authcode}')
         else:
             resp = MessagingResponse()
             resp.message("Error: Incorrect Auth Code")
@@ -261,8 +261,17 @@ def sms_ahoy_reply():
 
 
 if __name__ == "__main__":
+    # Get or generate faucet User with ID = 0.
+    faucet = User.get_or_none(User.phonenumber == "Faucet")
+    if faucet is None:
+        faucet = User.create(phonenumber="Faucet", authcode=-1, time=datetime.now(), count=0)
+    print(f'Is Faucet ID = 0? {faucet.id == 0}')
+    
+    if {faucet.id == 0}:
+        input("Anything to continue: ")
+
     # Check faucet address on boot to make sure we are up to date
-    account = nano.get_address(10)
+    account = nano.get_address(faucet.id)
     print(account)
     previous = nano.get_previous(str(account))
     print(previous)
@@ -273,9 +282,9 @@ if __name__ == "__main__":
         print("Opening Account")
         nano.open_xrb(int(10), account)
 
-    print("Rx Pending: ", pending)
+    print(f'Rx Pending: {pending}')
     pending = nano.get_pending(str(account))
-    print("Pending Len:" + str(len(pending)))
+    print(f'Pending Len: {len(pending)}')
 
     while len(pending) > 0:
         pending = nano.get_pending(str(account))
