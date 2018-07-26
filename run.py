@@ -1,18 +1,21 @@
-import  time, json, random
+import json
+import random
+import time
+from datetime import datetime, timedelta
+
+import phonenumbers
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
-from websocket import create_connection
-import binascii, dataset
-import phonenumbers
 
-# Importing settings file
-import settings
-
+import settings  # Importing settings file
+from modules import nano
+from modules.database import User, db
 from modules.nano import NanoFunctions
 nano = NanoFunctions(settings.uri) 
 
-#db = dataset.connect('sqlite:///users.db')
-#user_table = db['user']
+
+db.connect()
+
 
 app = Flask(__name__)
 
