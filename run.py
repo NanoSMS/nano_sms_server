@@ -7,16 +7,13 @@ import phonenumbers
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 
-import settings  # Importing settings file
-from modules import nano
+from modules.misc import Config
 from modules.database import SystemUser, User, db
 from modules.nano import NanoFunctions
 
-
-nano = NanoFunctions(settings.uri)
+nano = NanoFunctions(Config().get("uri")[0])
 
 db.connect()
-
 
 app = Flask(__name__)
 
