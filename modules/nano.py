@@ -182,6 +182,9 @@ class NanoFunctions:
     def private_to_public(self, private):
         return ed25519.SigningKey(private).get_verifying_key().to_bytes()
 
+    def get_work(self, frontier):
+        return self.rpc.work_generate(frontier)["work"]
+
     def xrb_account(self, address):
 
         # Transforms account form into hexadecimal format
@@ -424,7 +427,7 @@ class NanoFunctions:
         previous        = acc_info["frontier"]
         current_balance = acc_info["balance"]
         representative  = acc_info["representative"]
-        work            = self.rpc.work_generate(previous)
+        work            = self.get_work(previous)
 
         self.send_assemble(account, dest_account, private_key, amount, work, previous, current_balance, representative)
 
@@ -439,7 +442,7 @@ class NanoFunctions:
         previous        = acc_info["frontier"]
         current_balance = acc_info["balance"]
         representative  = acc_info["representative"]
-        work            = self.rpc.work_generate(previous)
+        work            = self.get_work(previous)
 
         self.receive_assemble(account, private_key, block, work, previous, current_balance, representative)
 
@@ -453,7 +456,7 @@ class NanoFunctions:
         block           = list(blocks.keys())[0]
 
         previous        = hex(0)[2:].rjust(64, '0')
-        work            = self.rpc.work_generate(previous)
+        work            = self.get_work(previous)
 
         self.open_assemble(account, private_key, public_key, block, new_representative, work)
 
@@ -464,6 +467,6 @@ class NanoFunctions:
         acc_info        = self.rpc.account_info(account)
         previous        = acc_info["frontier"]
         current_balance = acc_info["balance"]
-        work            = self.rpc.work_generate(previous)
+        work            = self.get_work(previous)
 
         self.change_assemble(account, private_key, new_representative, previous, current_balance, work)
