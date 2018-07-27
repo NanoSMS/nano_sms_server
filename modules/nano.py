@@ -1,7 +1,7 @@
 import json
 import requests
 import binascii
-import settings
+from modules.misc import Config
 from flask import request
 from pyblake2 import blake2b
 from bitstring import BitArray
@@ -182,6 +182,9 @@ class NanoFunctions:
     def private_to_public(self, private):
         return ed25519.SigningKey(private).get_verifying_key().to_bytes()
 
+    def get_work(self, frontier):
+        return self.rpc.work_generate(frontier)["work"]
+
     def xrb_account(self, address):
 
         # Transforms account form into hexadecimal format
@@ -274,8 +277,11 @@ class NanoFunctions:
         for _ in range(32 - len(balance)):
             balance = "0" + balance
 
-        priv_key        = BitArray(hex=private_key).bytes
-        pub_key         = BitArray(hex=public_key).bytes
+        hex_priv        = private_key.hex()
+        hex_pub         = public_key.hex()
+
+        priv_key        = BitArray(hex=hex_priv).bytes
+        pub_key         = BitArray(hex=hex_pub).bytes
 
         preamble        = BitArray(hex= (hex(6)[2:].rjust(64, '0')) ).bytes
         account         = BitArray(hex=self.xrb_account(account)).bytes
@@ -315,7 +321,7 @@ class NanoFunctions:
 
         # Generate address
 
-        _, pub_key = self.seed_account(settings.seed, index)
+        _, pub_key = self.seed_account(Config().get("seed"), index)
         public_key = str(binascii.hexlify(pub_key), 'ascii')
         account = self.account_xrb(str(public_key))
         return account
@@ -415,19 +421,19 @@ class NanoFunctions:
 
     def send_xrb(self, dest_account, amount, account, index):
 
-        private_key, _  = self.seed_account(settings.seed, index)
+        private_key, _  = self.seed_account(Config().get("seed"), index)
 
         acc_info        = self.rpc.account_info(account)
         previous        = acc_info["frontier"]
         current_balance = acc_info["balance"]
         representative  = acc_info["representative"]
-        work            = self.rpc.work_generate(previous)
+        work            = self.get_work(previous)
 
         self.send_assemble(account, dest_account, private_key, amount, work, previous, current_balance, representative)
 
     def receive_xrb(self, index, account):
 
-        private_key, _  = self.seed_account(settings.seed, index)
+        private_key, _  = self.seed_account(Config().get("seed"), index)
 
         blocks          = self.rpc.pending(account)
         block           = list(blocks.keys())[0]
@@ -436,13 +442,13 @@ class NanoFunctions:
         previous        = acc_info["frontier"]
         current_balance = acc_info["balance"]
         representative  = acc_info["representative"]
-        work            = self.rpc.work_generate(previous)
+        work            = self.get_work(previous)
 
         self.receive_assemble(account, private_key, block, work, previous, current_balance, representative)
 
     def open_xrb(self, index, account):
 
-        private_key, public_key  = self.seed_account(settings.seed, index)
+        private_key, public_key  = self.seed_account(Config().get("seed"), index)
 
         new_representative = "xrb_1kd4h9nqaxengni43xy9775gcag8ptw8ddjifnm77qes1efuoqikoqy5sjq3"
 
@@ -450,17 +456,17 @@ class NanoFunctions:
         block           = list(blocks.keys())[0]
 
         previous        = hex(0)[2:].rjust(64, '0')
-        work            = self.rpc.work_generate(previous)
+        work            = self.get_work(previous)
 
         self.open_assemble(account, private_key, public_key, block, new_representative, work)
 
     def change_xrb(self, index, account, new_representative):
 
-        private_key, _  = self.seed_account(settings.seed, index)
+        private_key, _  = self.seed_account(Config().get("seed"), index)
 
         acc_info        = self.rpc.account_info(account)
         previous        = acc_info["frontier"]
         current_balance = acc_info["balance"]
-        work            = self.rpc.work_generate(previous)
+        work            = self.get_work(previous)
 
         self.change_assemble(account, private_key, new_representative, previous, current_balance, work)
