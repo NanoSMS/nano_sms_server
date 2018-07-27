@@ -274,8 +274,11 @@ class NanoFunctions:
         for _ in range(32 - len(balance)):
             balance = "0" + balance
 
-        priv_key        = BitArray(hex=private_key).bytes
-        pub_key         = BitArray(hex=public_key).bytes
+        hex_priv        = private_key.hex()
+        hex_pub         = public_key.hex()
+
+        priv_key        = BitArray(hex=hex_priv).bytes
+        pub_key         = BitArray(hex=hex_pub).bytes
 
         preamble        = BitArray(hex= (hex(6)[2:].rjust(64, '0')) ).bytes
         account         = BitArray(hex=self.xrb_account(account)).bytes
