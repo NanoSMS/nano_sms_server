@@ -6,12 +6,19 @@ from datetime import datetime, timedelta
 import phonenumbers
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
+from twilio.rest import Client
 
 from modules.misc import Config
 from modules.database import SystemUser, User, db
 from modules.nano import NanoFunctions
 
 nano = NanoFunctions(Config().get("uri")[0])
+
+#to do: move to config
+account_sid = 'AC3816271493b14891c0a02e676c74195d'
+auth_token = 'auth_code'
+twilionum = 'twilio_number'
+client = Client(account_sid, auth_token)
 
 db.connect()
 
@@ -125,7 +132,7 @@ def sms_ahoy_reply():
 
         # Check amount is real
         try:
-            amount = int(components[1]) * 1000000000000000000000000
+            amount = int(components[1]) * 1
         except:
             resp = MessagingResponse()
             resp.message("Error: Incorrect Amount")
@@ -137,7 +144,7 @@ def sms_ahoy_reply():
         authcode = int(components[3])
         if authcode == int(user_details.authcode):
             if destination[0] == "x":
-                print("xrb addresses")
+                print("Sent direct to xrb_address: " + destination)
                 nano.send_xrb(destination, amount, account, user_details.id + 1)
                 resp = MessagingResponse()
                 resp.message(f'Sent!, AuthCode: {newauthcode}')
@@ -146,7 +153,7 @@ def sms_ahoy_reply():
             else:
                 try:
                     phonenum = phonenumbers.parse(destination, from_country)
-                    dest_address = phonenumbers.format_number(
+                    dest_phone = phonenumbers.format_number(
                         phonenum, phonenumbers.PhoneNumberFormat.E164)
                 except phonenumbers.phonenumberutil.NumberParseException:
                     print("Error")
@@ -159,23 +166,40 @@ def sms_ahoy_reply():
                 resp.message("Error: Incorrect destination")
                 return str(resp)
 
-            dest_user_details = User.get_or_none(phonenumber=dest_address)
-            print(dest_user_details)
+            #Send to phonenumber, and register if not registered.
+            dest_user_details = User.get_or_none(phonenumber=dest_phone)
 
             if dest_user_details is None:
                 dest_user_details = User.create(
-                    phonenumber=dest_address,
+                    phonenumber=dest_phone,
                     time=0,
                     count=0,
                     authcode=0,
                     claim_last=0)
 
-            nano.send_xrb(
-                nano.get_address(dest_user_details.id), amount, account,
-                user_details.id + 1)
+            dest_address = nano.get_address(dest_user_details.id + 1)
+            print("Sending to: " + dest_address)
+            nano.send_xrb(dest_address, amount, account,user_details.id + 1)
+
+            previous = nano.get_previous(str(account))
+            balance = int(nano.get_balance(previous)) / \
+                1000000000000000000000000
 
             resp = MessagingResponse()
-            resp.message(f'Sent!, AuthCode: {newauthcode}')
+            resp.message(f'Sent!, AuthCode: {newauthcode}\nYour Balance: {balance}')
+
+            previous = nano.get_previous(str(dest_address))
+            balance = int(nano.get_balance(previous)) / \
+                1000000000000000000000000
+
+            bodysend = 'You have recieved nano!\nYour balance: ' + str(balance)
+            message = client.messages.create(
+                                            from_=twilionum,
+                                            body=bodysend,
+                                            to=dest_phone
+                                            )
+
+            print(message.sid)
 
         else:
             resp = MessagingResponse()
@@ -311,6 +335,7 @@ def sms_ahoy_reply():
             previous = nano.get_previous(str(topupadd))
             topupadd_bal = int(nano.get_balance(previous)) / \
                 1000000000000000000000000
+
             if topupadd_bal < card_valid.cardvalue:
                 print(
                     f'Insufficient Balance\n'
