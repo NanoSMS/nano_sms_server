@@ -183,7 +183,11 @@ class NanoFunctions:
         return ed25519.SigningKey(private).get_verifying_key().to_bytes()
 
     def get_work(self, frontier):
-        return self.rpc.work_generate(frontier)["work"]
+        uri = Config().get("work_uri")[0]
+        response = requests.post(uri + "/work", data = {'hash':frontier})
+        if not response.ok:
+                return None
+        return json.loads(response.text)["work"]
 
     def xrb_account(self, address):
 
