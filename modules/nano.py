@@ -194,31 +194,35 @@ class NanoFunctions:
         # Transforms account form into hexadecimal format
 
         if len(address) == 64 and (address[:4] == 'xrb_'):
-            account_map = "13456789abcdefghijkmnopqrstuwxyz"
-            account_lookup = {}
-            for i in range(0,32):
-                account_lookup[account_map[i]] = BitArray(uint=i,length=5)
-
             acrop_key = address[4:-8]
-            acrop_check = address[-8:]
-                
-            number_l = BitArray()
-            for x in range(0, len(acrop_key)):
-                number_l.append(account_lookup[acrop_key[x]])
-            number_l = number_l[4:]
+        elif len(address) == 65 and (address[:5] == 'nano_'):
+            acrop_key = address[5:-8]
+        else:
+            return None
 
-            check_l = BitArray()
-            for x in range(0, len(acrop_check)):
-                check_l.append(account_lookup[acrop_check[x]])
-            check_l.byteswap()
+        account_map = "13456789abcdefghijkmnopqrstuwxyz"
+        account_lookup = {}
+        for i in range(0,32):
+            account_lookup[account_map[i]] = BitArray(uint=i,length=5)
+            
+        acrop_check = address[-8:]
+            
+        number_l = BitArray()
+        for x in range(0, len(acrop_key)):
+            number_l.append(account_lookup[acrop_key[x]])
+        number_l = number_l[4:]
 
-            result = number_l.hex.upper()
+        check_l = BitArray()
+        for x in range(0, len(acrop_check)):
+            check_l.append(account_lookup[acrop_check[x]])
+        check_l.byteswap()
 
-            h = blake2b(digest_size=5)
-            h.update(number_l.bytes)
-            if (h.hexdigest() == check_l.hex):
-                return result
-            return False
+        result = number_l.hex.upper()
+
+        h = blake2b(digest_size=5)
+        h.update(number_l.bytes)
+        if (h.hexdigest() == check_l.hex):
+            return result
         return False
 
     def account_xrb(self, account):
