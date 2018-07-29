@@ -415,16 +415,16 @@ class NanoFunctions:
         block = self.block_create(previous, account, new_representative, current_balance, link, key, work)
         return self.rpc.process(block)
 
-    def open_assemble(self, account, key, public_key, block, new_representative, work):
+    def open_assemble(self, account, key, previous, block, new_representative, work):
 
         # Assembles open block
 
         blocks_info = self.rpc.blocks_info(block)
         amount = int(blocks_info["blocks"][block]["amount"])
         new_balance = str(amount)
-        
+
         link = block
-        block = self.block_create(public_key, account, new_representative, new_balance, link, key, work)
+        block = self.block_create(previous, account, new_representative, new_balance, link, key, work)
         return self.rpc.process(block)
 
     def send_xrb(self, dest_account, amount, account, index):
@@ -464,9 +464,9 @@ class NanoFunctions:
         block           = blocks[account][0]
 
         previous        = hex(0)[2:].rjust(64, '0')
-        work            = self.get_work(previous)
+        work            = self.get_work(public_key.hex().upper())
 
-        self.open_assemble(account, private_key, public_key, block, new_representative, work)
+        self.open_assemble(account, private_key, previous, block, new_representative, work)
 
     def change_xrb(self, index, account, new_representative):
 
