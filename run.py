@@ -6,17 +6,22 @@ from datetime import datetime, timedelta
 import phonenumbers
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
+from twilio.rest import Client
 
 import settings  # Importing settings file
-from modules import nano
+from modules.misc import Config
 from modules.database import SystemUser, User, db, TopupCards
 from modules.nano import NanoFunctions
 
+nano = NanoFunctions(Config().get("uri")[0])
 
-nano = NanoFunctions(settings.uri)
+#to do: move to config
+account_sid = 'AC3816271493b14891c0a02e676c74195d'
+auth_token = 'auth_code'
+twilionum = 'twilio_number'
+client = Client(account_sid, auth_token)
 
 db.connect()
-
 
 app = Flask(__name__)
 
@@ -135,6 +140,7 @@ def send(user_details, text_body):
             resp.message(f'Sent! Code: {new_authcode}')
             return resp
 
+
         else:
             try:
                 phonenum = phonenumbers.parse(destination, user_details.country)
@@ -146,6 +152,7 @@ def send(user_details, text_body):
                 resp.message("Error: Incorrect destination address/number")
                 return resp
 
+
         if not phonenumbers.is_possible_number(phonenum):
             resp = MessagingResponse()
             resp.message("Error: Incorrect destination")
@@ -154,17 +161,40 @@ def send(user_details, text_body):
         dest_user_details = User.get_or_none(phonenumber=dest_address)
         print(dest_user_details)
 
-        if dest_user_details is None:
-            dest_user_details = User.create(
-                phonenumber=dest_address,
-                time=0,
-                count=0,
-                authcode=0,
-                claim_last=0)
+            #Send to phonenumber, and register if not registered.
+            dest_user_details = User.get_or_none(phonenumber=dest_phone)
 
-        nano.send_xrb(
-            nano.get_address(dest_user_details.id), amount, account,
-            user_details.id)
+            if dest_user_details is None:
+                dest_user_details = User.create(
+                    phonenumber=dest_phone,
+                    time=0,
+                    count=0,
+                    authcode=0,
+                    claim_last=0)
+
+            dest_address = nano.get_address(dest_user_details.id + 1)
+            print("Sending to: " + dest_address)
+            nano.send_xrb(dest_address, amount, account,user_details.id + 1)
+
+            previous = nano.get_previous(str(account))
+            balance = int(nano.get_balance(previous)) / \
+                1000000000000000000000000
+
+            resp = MessagingResponse()
+            resp.message(f'Sent!, AuthCode: {newauthcode}\nYour Balance: {balance}')
+
+            previous = nano.get_previous(str(dest_address))
+            balance = int(nano.get_balance(previous)) / \
+                1000000000000000000000000
+
+            bodysend = 'You have recieved nano!\nYour balance: ' + str(balance)
+            message = client.messages.create(
+                                            from_=twilionum,
+                                            body=bodysend,
+                                            to=dest_phone
+                                            )
+
+            print(message.sid)
 
         resp = MessagingResponse()
         new_authcode = authcode_gen_save(user_details)
@@ -436,7 +466,7 @@ if __name__ == "__main__":
     pending = nano.get_pending(str(account))
     if (len(previous) == 0) and (len(pending) > 0):
         print("Opening Account")
-        nano.open_xrb(int(10), account)
+        nano.open_xrb(int(0), account)
 
     print(f'Rx Pending: {pending}')
     pending = nano.get_pending(str(account))
@@ -445,6 +475,6 @@ if __name__ == "__main__":
     while len(pending) > 0:
         pending = nano.get_pending(str(account))
         print(len(pending))
-        nano.receive_xrb(int(10), account)
+        nano.receive_xrb(int(0), account)
 
     app.run(debug=True, host="0.0.0.0", port=5002)

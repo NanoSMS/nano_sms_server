@@ -1,7 +1,7 @@
 import json
 import requests
 import binascii
-import settings
+from modules.misc import Config
 from flask import request
 from pyblake2 import blake2b
 from bitstring import BitArray
@@ -182,36 +182,47 @@ class NanoFunctions:
     def private_to_public(self, private):
         return ed25519.SigningKey(private).get_verifying_key().to_bytes()
 
+    def get_work(self, frontier):
+        uri = Config().get("work_uri")[0]
+        response = requests.post(uri + "/work", data = {'hash':frontier})
+        if not response.ok:
+                return None
+        return json.loads(response.text)["work"]
+
     def xrb_account(self, address):
 
         # Transforms account form into hexadecimal format
 
         if len(address) == 64 and (address[:4] == 'xrb_'):
-            account_map = "13456789abcdefghijkmnopqrstuwxyz"
-            account_lookup = {}
-            for i in range(0,32):
-                account_lookup[account_map[i]] = BitArray(uint=i,length=5)
-
             acrop_key = address[4:-8]
-            acrop_check = address[-8:]
-                
-            number_l = BitArray()
-            for x in range(0, len(acrop_key)):
-                number_l.append(account_lookup[acrop_key[x]])
-            number_l = number_l[4:]
+        elif len(address) == 65 and (address[:5] == 'nano_'):
+            acrop_key = address[5:-8]
+        else:
+            return None
 
-            check_l = BitArray()
-            for x in range(0, len(acrop_check)):
-                check_l.append(account_lookup[acrop_check[x]])
-            check_l.byteswap()
+        account_map = "13456789abcdefghijkmnopqrstuwxyz"
+        account_lookup = {}
+        for i in range(0,32):
+            account_lookup[account_map[i]] = BitArray(uint=i,length=5)
+            
+        acrop_check = address[-8:]
+            
+        number_l = BitArray()
+        for x in range(0, len(acrop_key)):
+            number_l.append(account_lookup[acrop_key[x]])
+        number_l = number_l[4:]
 
-            result = number_l.hex.upper()
+        check_l = BitArray()
+        for x in range(0, len(acrop_check)):
+            check_l.append(account_lookup[acrop_check[x]])
+        check_l.byteswap()
 
-            h = blake2b(digest_size=5)
-            h.update(number_l.bytes)
-            if (h.hexdigest() == check_l.hex):
-                return result
-            return False
+        result = number_l.hex.upper()
+
+        h = blake2b(digest_size=5)
+        h.update(number_l.bytes)
+        if (h.hexdigest() == check_l.hex):
+            return result
         return False
 
     def account_xrb(self, account):
@@ -274,8 +285,11 @@ class NanoFunctions:
         for _ in range(32 - len(balance)):
             balance = "0" + balance
 
-        priv_key        = BitArray(hex=private_key).bytes
-        pub_key         = BitArray(hex=public_key).bytes
+        hex_priv        = private_key.hex()
+        hex_pub         = public_key.hex()
+
+        priv_key        = BitArray(hex=hex_priv).bytes
+        pub_key         = BitArray(hex=hex_pub).bytes
 
         preamble        = BitArray(hex= (hex(6)[2:].rjust(64, '0')) ).bytes
         account         = BitArray(hex=self.xrb_account(account)).bytes
@@ -315,7 +329,7 @@ class NanoFunctions:
 
         # Generate address
 
-        _, pub_key = self.seed_account(settings.seed, index)
+        _, pub_key = self.seed_account(Config().get("seed"), index)
         public_key = str(binascii.hexlify(pub_key), 'ascii')
         account = self.account_xrb(str(public_key))
         return account
@@ -401,33 +415,33 @@ class NanoFunctions:
         block = self.block_create(previous, account, new_representative, current_balance, link, key, work)
         return self.rpc.process(block)
 
-    def open_assemble(self, account, key, public_key, block, new_representative, work):
+    def open_assemble(self, account, key, previous, block, new_representative, work):
 
         # Assembles open block
 
         blocks_info = self.rpc.blocks_info(block)
         amount = int(blocks_info["blocks"][block]["amount"])
         new_balance = str(amount)
-        
+
         link = block
-        block = self.block_create(public_key, account, new_representative, new_balance, link, key, work)
+        block = self.block_create(previous, account, new_representative, new_balance, link, key, work)
         return self.rpc.process(block)
 
     def send_xrb(self, dest_account, amount, account, index):
 
-        private_key, _  = self.seed_account(settings.seed, index)
+        private_key, _  = self.seed_account(Config().get("seed"), index)
 
         acc_info        = self.rpc.account_info(account)
         previous        = acc_info["frontier"]
         current_balance = acc_info["balance"]
         representative  = acc_info["representative"]
-        work            = self.rpc.work_generate(previous)
+        work            = self.get_work(previous)
 
         self.send_assemble(account, dest_account, private_key, amount, work, previous, current_balance, representative)
 
     def receive_xrb(self, index, account):
 
-        private_key, _  = self.seed_account(settings.seed, index)
+        private_key, _  = self.seed_account(Config().get("seed"), index)
 
         blocks          = self.rpc.pending(account)
         block           = list(blocks.keys())[0]
@@ -436,31 +450,31 @@ class NanoFunctions:
         previous        = acc_info["frontier"]
         current_balance = acc_info["balance"]
         representative  = acc_info["representative"]
-        work            = self.rpc.work_generate(previous)
+        work            = self.get_work(previous)
 
         self.receive_assemble(account, private_key, block, work, previous, current_balance, representative)
 
     def open_xrb(self, index, account):
 
-        private_key, public_key  = self.seed_account(settings.seed, index)
+        private_key, public_key  = self.seed_account(Config().get("seed"), index)
 
         new_representative = "xrb_1kd4h9nqaxengni43xy9775gcag8ptw8ddjifnm77qes1efuoqikoqy5sjq3"
 
-        blocks          = self.rpc.pending(account)
-        block           = list(blocks.keys())[0]
+        blocks          = self.rpc.accounts_pending([account], 1)["blocks"]
+        block           = blocks[account][0]
 
         previous        = hex(0)[2:].rjust(64, '0')
-        work            = self.rpc.work_generate(previous)
+        work            = self.get_work(public_key.hex().upper())
 
-        self.open_assemble(account, private_key, public_key, block, new_representative, work)
+        self.open_assemble(account, private_key, previous, block, new_representative, work)
 
     def change_xrb(self, index, account, new_representative):
 
-        private_key, _  = self.seed_account(settings.seed, index)
+        private_key, _  = self.seed_account(Config().get("seed"), index)
 
         acc_info        = self.rpc.account_info(account)
         previous        = acc_info["frontier"]
         current_balance = acc_info["balance"]
-        work            = self.rpc.work_generate(previous)
+        work            = self.get_work(previous)
 
         self.change_assemble(account, private_key, new_representative, previous, current_balance, work)
