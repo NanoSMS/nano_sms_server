@@ -460,8 +460,8 @@ class NanoFunctions:
 
         new_representative = "xrb_1kd4h9nqaxengni43xy9775gcag8ptw8ddjifnm77qes1efuoqikoqy5sjq3"
 
-        blocks          = self.rpc.pending(account)
-        block           = list(blocks.keys())[0]
+        blocks          = self.rpc.accounts_pending([account], 1)["blocks"]
+        block           = blocks[account][0]
 
         previous        = hex(0)[2:].rjust(64, '0')
         work            = self.get_work(previous)
