@@ -8,7 +8,6 @@ from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 from twilio.rest import Client
 
-import settings  # Importing settings file
 from modules.misc import Config
 from modules.database import SystemUser, User, db, TopupCards
 from modules.nano import NanoFunctions
@@ -70,7 +69,8 @@ def history(user_details, text_body):
     account = nano.get_address(user_details.id)
     resp = MessagingResponse()
     new_authcode = authcode_gen_save(user_details)
-    resp.message(f'https://www.nanode.co/account/{account}, Code: {new_authcode}')
+    resp.message(
+        f'https://www.nanode.co/account/{account}, Code: {new_authcode}')
     return resp
 
 
@@ -140,11 +140,11 @@ def send(user_details, text_body):
             resp.message(f'Sent! Code: {new_authcode}')
             return resp
 
-
         else:
             try:
-                phonenum = phonenumbers.parse(destination, user_details.country)
-                dest_address = phonenumbers.format_number(
+                phonenum = phonenumbers.parse(destination,
+                                              user_details.country)
+                dest_phone = phonenumbers.format_number(
                     phonenum, phonenumbers.PhoneNumberFormat.E164)
             except phonenumbers.phonenumberutil.NumberParseException:
                 print("Error")
@@ -152,49 +152,45 @@ def send(user_details, text_body):
                 resp.message("Error: Incorrect destination address/number")
                 return resp
 
-
         if not phonenumbers.is_possible_number(phonenum):
             resp = MessagingResponse()
             resp.message("Error: Incorrect destination")
             return resp
 
-        dest_user_details = User.get_or_none(phonenumber=dest_address)
+        dest_user_details = User.get_or_none(phonenumber=dest_phone)
         print(dest_user_details)
 
-            #Send to phonenumber, and register if not registered.
-            dest_user_details = User.get_or_none(phonenumber=dest_phone)
+        #Send to phonenumber, and register if not registered.
+        dest_user_details = User.get_or_none(phonenumber=dest_phone)
+        if dest_user_details is None:
+            dest_user_details = User.create(
+                phonenumber=dest_phone,
+                time=0,
+                count=0,
+                authcode=0,
+                claim_last=0)
 
-            if dest_user_details is None:
-                dest_user_details = User.create(
-                    phonenumber=dest_phone,
-                    time=0,
-                    count=0,
-                    authcode=0,
-                    claim_last=0)
+        dest_address = nano.get_address(dest_user_details.id + 1)
+        print("Sending to: " + dest_address)
+        nano.send_xrb(dest_address, amount, account, user_details.id + 1)
 
-            dest_address = nano.get_address(dest_user_details.id + 1)
-            print("Sending to: " + dest_address)
-            nano.send_xrb(dest_address, amount, account,user_details.id + 1)
+        previous = nano.get_previous(str(account))
+        balance = int(nano.get_balance(previous)) / \
+            1000000000000000000000000
 
-            previous = nano.get_previous(str(account))
-            balance = int(nano.get_balance(previous)) / \
-                1000000000000000000000000
+        resp = MessagingResponse()
+        resp.message(
+            f'Sent!, AuthCode: {new_authcode}\nYour Balance: {balance}')
 
-            resp = MessagingResponse()
-            resp.message(f'Sent!, AuthCode: {newauthcode}\nYour Balance: {balance}')
+        previous = nano.get_previous(str(dest_address))
+        balance = int(nano.get_balance(previous)) / \
+            1000000000000000000000000
 
-            previous = nano.get_previous(str(dest_address))
-            balance = int(nano.get_balance(previous)) / \
-                1000000000000000000000000
+        bodysend = 'You have recieved nano!\nYour balance: ' + str(balance)
+        message = client.messages.create(
+            from_=twilionum, body=bodysend, to=dest_phone)
 
-            bodysend = 'You have recieved nano!\nYour balance: ' + str(balance)
-            message = client.messages.create(
-                                            from_=twilionum,
-                                            body=bodysend,
-                                            to=dest_phone
-                                            )
-
-            print(message.sid)
+        print(message.sid)
 
         resp = MessagingResponse()
         new_authcode = authcode_gen_save(user_details)
@@ -219,17 +215,18 @@ def claim(user_details, text_body):
         faucet_bal = int(nano.get_balance(previous)) / \
             1000000000000000000000000
 
-        claim = faucet_bal*0.01
+        claim = faucet_bal * 0.01
         nano.send_xrb(account, claim, faucet, 0)
         user_details.claim_last = 1
         user_details.save()
 
         resp = MessagingResponse()
         new_authcode = authcode_gen_save(user_details)
-        resp.message(f'Claim Success {claim}\n'
-                     f'AD1: check out localnanos to exchange nano/VEF\n'
-                     f'AD2: Cerveza Polar 6 for 1Nano at JeffMart, 424 Caracas\n'
-                     f'Code: {new_authcode}')
+        resp.message(
+            f'Claim Success {claim}\n'
+            f'AD1: check out localnanos to exchange nano/VEF\n'
+            f'AD2: Cerveza Polar 6 for 1Nano at JeffMart, 424 Caracas\n'
+            f'Code: {new_authcode}')
 
         print(f'{claim} sent to {account} from faucet\n'
               f'Faucet funds remaining {faucet_bal-claim}')
@@ -254,7 +251,7 @@ def trust(user_details, text_body):
                     resp = MessagingResponse()
                     new_authcode = authcode_gen_save(user_details)
                     resp.message(f'Trust address set to {components[1]}'
-                                    f', Code: {new_authcode}')
+                                 f', Code: {new_authcode}')
 
                     user_details.trust_address = xrb_trust
                     user_details.trust_phonenumber = 0
@@ -273,14 +270,13 @@ def trust(user_details, text_body):
                 new_authcode = authcode_gen_save(user_details)
                 resp.message(f'Invalid address, Code:  {new_authcode}')
                 return resp
-    
+
         elif components[1].isdigit():
             trust_number = components[1]
             resp = MessagingResponse()
             new_authcode = authcode_gen_save(user_details)
             resp.message(
-                f'Trust address set to {components[1]}, Code: {new_authcode}'
-            )
+                f'Trust address set to {components[1]}, Code: {new_authcode}')
             user_details.trust_address = ""
             user_details.trust_number = trust_number
             user_details.save()
@@ -301,15 +297,15 @@ def trust(user_details, text_body):
 
 def recover(user_details, text_body):
     print('Start Recovery')
-    
+
     components = text_body.split(" ")
     rec_word_rx = components[1]
 
     # Check recovery word
     try:
-        rec_details = User.get(User.rec_word==rec_word_rx)
+        rec_details = User.get(User.rec_word == rec_word_rx)
         rec_account = nano.get_address(rec_details.id)
-        
+
         resp = MessagingResponse()
         new_authcode = authcode_gen_save(user_details)
         resp.message(
@@ -355,7 +351,8 @@ def topup(user_details, text_body):
         if topupadd_bal < card_valid.cardvalue:
             print(
                 f'Insufficient Balance\n'
-                f'Address Balance {topupadd_bal}, Card request {card_valid.cardvalue}')
+                f'Address Balance {topupadd_bal}, Card request {card_valid.cardvalue}'
+            )
 
         nano.send_xrb(account, card_valid.cardvalue, topupadd, 0)
 
@@ -365,14 +362,12 @@ def topup(user_details, text_body):
 
         resp = MessagingResponse()
         new_authcode = authcode_gen_save(user_details)
-        resp.message(
-                f'Topup success!\n'
-                f'Your new account balance {balance}\n'
-                f'AuthCode: {new_authcode}')
+        resp.message(f'Topup success!\n'
+                     f'Your new account balance {balance}\n'
+                     f'AuthCode: {new_authcode}')
 
-        print(
-            f'Success topup to {account} from topup address\n'
-            f'Address Balance {topupadd_bal-card_valid.cardvalue}')
+        print(f'Success topup to {account} from topup address\n'
+              f'Address Balance {topupadd_bal-card_valid.cardvalue}')
         card_valid.claimed = True
         card_valid.save()
         return resp
@@ -389,7 +384,8 @@ def sms_ahoy_reply():
     if user_details is None:  # User is not found in the database
         print(f'{from_number} is not in database.')
         authcode = random.SystemRandom().randint(1000, 9999)
-        rec_word = ''.join(random.sample(open("english.txt").read().split(),5))
+        rec_word = ''.join(
+            random.sample(open("english.txt").read().split(), 5))
         user_details = User.create(
             phonenumber=from_number,
             country=from_country,
@@ -400,7 +396,8 @@ def sms_ahoy_reply():
             rec_word=rec_word)
 
     else:
-        print(f'{user_details.id} - {user_details.phonenumber} sent a message.')
+        print(
+            f'{user_details.id} - {user_details.phonenumber} sent a message.')
         user_details.phonenumber = from_number
         user_details.country = from_country
         user_details.time = datetime.now()
@@ -409,7 +406,6 @@ def sms_ahoy_reply():
 
     text_body = request.values.get('Body')
     text_body = text_body.lower()
-
 
     if 'register' in text_body:
         return str(register(user_details, text_body))
@@ -434,13 +430,12 @@ def sms_ahoy_reply():
 
     elif 'trust' in text_body:
         return str(trust(user_details, text_body))
-    
+
     elif 'recover' in text_body:
         return str(recover(user_details, text_body))
 
     elif 'topup' in text_body:
         return str(topup(user_details, text_body))
-
 
     else:
         print('Error ' + text_body)
@@ -449,7 +444,8 @@ def sms_ahoy_reply():
         resp = MessagingResponse()
 
         # Add a message
-        resp.message("Command not recognised, send " + commands + "for a list of commands")
+        resp.message("Command not recognised, send " + commands +
+                     "for a list of commands")
 
     return str(resp)
 
