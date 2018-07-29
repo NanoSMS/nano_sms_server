@@ -396,6 +396,6 @@ if __name__ == "__main__":
     while len(pending) > 0:
         pending = nano.get_pending(str(account))
         print(len(pending))
-        nano.receive_xrb(int(10), account)
+        nano.receive_xrb(int(0), account)
 
     app.run(debug=True, host="0.0.0.0", port=5002)
