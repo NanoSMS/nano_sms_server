@@ -14,6 +14,7 @@ class BaseModel(Model):
 
 class User(BaseModel):
     phonenumber = CharField(unique=True)
+    country = CharField()
     authcode = IntegerField()
 
     time = DateTimeField()  # Last interaction
