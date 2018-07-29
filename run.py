@@ -387,7 +387,7 @@ if __name__ == "__main__":
     pending = nano.get_pending(str(account))
     if (len(previous) == 0) and (len(pending) > 0):
         print("Opening Account")
-        nano.open_xrb(int(10), account)
+        nano.open_xrb(int(0), account)
 
     print(f'Rx Pending: {pending}')
     pending = nano.get_pending(str(account))
