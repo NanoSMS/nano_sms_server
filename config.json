@@ -1,5 +1,7 @@
 {
     "seed" : "",
+    "twilionum" : "twilio_number",
+    "auth_token" : "auth_token",
     "uri" : [
         "http://188.166.149.243:6060"
     ],
