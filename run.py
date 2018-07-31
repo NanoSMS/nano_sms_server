@@ -13,12 +13,7 @@ from modules.database import SystemUser, User, db, TopupCards
 from modules.nano import NanoFunctions
 
 nano = NanoFunctions(Config().get("uri")[0])
-
-#to do: move to config
-account_sid = 'AC3816271493b14891c0a02e676c74195d'
-auth_token = 'auth_code'
-twilionum = 'twilio_number'
-client = Client(account_sid, auth_token)
+client = Client('AC3816271493b14891c0a02e676c74195d', Config().get("auth_token")[0])
 
 db.connect()
 
@@ -48,10 +43,9 @@ def register(user_details, text_body):
 def commands(user_details, text_body):
     print('Found help')
     resp = MessagingResponse()
-    new_authcode = authcode_gen_save(user_details)
     resp.message(f'balance - get your balance\n'
                  f'send - send Nano\n'
-                 f'address - your nano address, Code: {new_authcode}')
+                 f'address - your nano address')
     return resp
 
 
@@ -59,8 +53,7 @@ def address(user_details, text_body):
     print('Found address')
     account = nano.get_address(user_details.id)
     resp = MessagingResponse()
-    new_authcode = authcode_gen_save(user_details)
-    resp.message(f'{account}, Code: {new_authcode}')
+    resp.message(f'{account}')
     return resp
 
 
@@ -68,9 +61,8 @@ def history(user_details, text_body):
     print('Found address')
     account = nano.get_address(user_details.id)
     resp = MessagingResponse()
-    new_authcode = authcode_gen_save(user_details)
     resp.message(
-        f'https://www.nanode.co/account/{account}, Code: {new_authcode}')
+        f'https://www.nanode.co/account/{account}')
     return resp
 
 
@@ -109,8 +101,17 @@ def balance(user_details, text_body):
     resp = MessagingResponse()
 
     # Add a message
-    new_authcode = authcode_gen_save(user_details)
-    resp.message(f'Balance: {balance} nanos, Code: {new_authcode}')
+    resp.message(f'Balance: {balance} nanos')
+    return resp
+
+def sendauthcode(user_details, text_body):
+    print('Found address')
+    authcode = user_details.authcode
+    resp = MessagingResponse()
+    resp.message(
+        f'Sending funds requires an authorization code. Please reply to this message with a value, the xrb address or contact number'
+        f' and the following authcode: {authcode}\n\n'
+        f'Example: 10 +1234567890 1001')
     return resp
 
 
@@ -121,23 +122,28 @@ def send(user_details, text_body):
 
     # Check amount is real
     try:
-        amount = int(components[1]) * 1000000000000000000000000
+        amount = int(components[0]) * 1000000000000000000000000
     except:
         resp = MessagingResponse()
         resp.message("Error: Incorrect Amount")
         return str(resp)
 
-    destination = components[2]
+    destination = components[1]
     destination = destination.replace("\u202d", "")
     destination = destination.replace("\u202c", "")
-    authcode = int(components[3])
+    authcode = int(components[2])
     if authcode == int(user_details.authcode):
         if destination[0] == "x":
             print("xrb addresses")
             nano.send_xrb(destination, amount, account, user_details.id)
             resp = MessagingResponse()
             new_authcode = authcode_gen_save(user_details)
-            resp.message(f'Sent! Code: {new_authcode}')
+
+            previous = nano.get_previous(str(account))
+            balance = int(nano.get_balance(previous)) / \
+                1000000000000000000000000
+
+            resp.message(f'Sent!\nYour Balance: {balance}')
             return resp
 
         else:
@@ -180,13 +186,14 @@ def send(user_details, text_body):
 
         resp = MessagingResponse()
         resp.message(
-            f'Sent!, AuthCode: {new_authcode}\nYour Balance: {balance}')
+            f'Sent!\nYour Balance: {balance}')
 
         previous = nano.get_previous(str(dest_address))
         balance = int(nano.get_balance(previous)) / \
             1000000000000000000000000
 
         bodysend = 'You have recieved nano!\nYour balance: ' + str(balance)
+        twilionum = Config().get("twilionum")
         message = client.messages.create(
             from_=twilionum, body=bodysend, to=dest_phone)
 
@@ -221,12 +228,10 @@ def claim(user_details, text_body):
         user_details.save()
 
         resp = MessagingResponse()
-        new_authcode = authcode_gen_save(user_details)
         resp.message(
             f'Claim Success {claim}\n'
             f'AD1: check out localnanos to exchange nano/VEF\n'
-            f'AD2: Cerveza Polar 6 for 1Nano at JeffMart, 424 Caracas\n'
-            f'Code: {new_authcode}')
+            f'AD2: Cerveza Polar 6 for 1Nano at JeffMart, 424 Caracas\n')
 
         print(f'{claim} sent to {account} from faucet\n'
               f'Faucet funds remaining {faucet_bal-claim}')
@@ -343,17 +348,17 @@ def topup(user_details, text_body):
         resp.message("Card has already been claimed")
         return resp
 
-    else:
-        topupadd = nano.get_address(1)
-        previous = nano.get_previous(str(topupadd))
-        topupadd_bal = int(nano.get_balance(previous)) / \
-            1000000000000000000000000
-        if topupadd_bal < card_valid.cardvalue:
-            print(
-                f'Insufficient Balance\n'
-                f'Address Balance {topupadd_bal}, Card request {card_valid.cardvalue}'
-            )
+    topupadd = nano.get_address(1)
+    previous = nano.get_previous(str(topupadd))
+    topupadd_bal = int(nano.get_balance(previous)) / \
+        1000000000000000000000000
+    if topupadd_bal < card_valid.cardvalue:
+        print(
+            f'Insufficient Balance\n'
+            f'Address Balance {topupadd_bal}, Card request {card_valid.cardvalue}'
+        )
 
+    else:
         nano.send_xrb(account, card_valid.cardvalue, topupadd, 0)
 
         previous = nano.get_previous(str(account))
@@ -361,10 +366,8 @@ def topup(user_details, text_body):
             1000000000000000000000000
 
         resp = MessagingResponse()
-        new_authcode = authcode_gen_save(user_details)
         resp.message(f'Topup success!\n'
-                     f'Your new account balance {balance}\n'
-                     f'AuthCode: {new_authcode}')
+                     f'Your new account balance {balance}\n')
 
         print(f'Success topup to {account} from topup address\n'
               f'Address Balance {topupadd_bal-card_valid.cardvalue}')
@@ -395,6 +398,10 @@ def sms_ahoy_reply():
             claim_last=0,
             rec_word=rec_word)
 
+    if (user_details.datetime.now() - user_details.time).total_seconds() < 15:
+        time.sleep(15)
+        print(user_details.phonenumber + ' user rate locked for 15 seconds')
+
     else:
         print(
             f'{user_details.id} - {user_details.phonenumber} sent a message.')
@@ -406,6 +413,9 @@ def sms_ahoy_reply():
 
     text_body = request.values.get('Body')
     text_body = text_body.lower()
+
+    components = text_body.split(" ")
+    amount = int(components[0]) * 1000000000000000000000000
 
     if 'register' in text_body:
         return str(register(user_details, text_body))
@@ -423,6 +433,10 @@ def sms_ahoy_reply():
         return str(balance(user_details, text_body))
 
     elif 'send' in text_body:
+        return str(sendauthcode(user_details, text_body))
+
+    #check if user is sending value
+    elif type(components[0]) == True:
         return str(send(user_details, text_body))
 
     elif 'claim' in text_body:
