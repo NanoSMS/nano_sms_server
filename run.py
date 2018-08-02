@@ -398,7 +398,7 @@ def sms_ahoy_reply():
             claim_last=0,
             rec_word=rec_word)
 
-    if (user_details.datetime.now() - user_details.time).total_seconds() < 15:
+    if (datetime.now() - user_details.time).total_seconds() < 15:
         time.sleep(15)
         print(user_details.phonenumber + ' user rate locked for 15 seconds')
 
