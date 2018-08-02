@@ -13,7 +13,7 @@ from modules.database import SystemUser, User, db, TopupCards
 from modules.nano import NanoFunctions
 
 nano = NanoFunctions(Config().get("uri")[0])
-client = Client('AC3816271493b14891c0a02e676c74195d', Config().get("auth_token")[0])
+client = Client(Config().get("account_sid")[0], Config().get("auth_token")[0])
 
 db.connect()
 
