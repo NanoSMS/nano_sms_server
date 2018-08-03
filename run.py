@@ -29,7 +29,7 @@ def authcode_gen_save(user_details):
 
 def register(user_details, text_body):
     print('Found register')
-    account = nano.get_address(user_details.id)
+    account = nano.get_address(user_details.id + 1)
     # Start our response
     resp = MessagingResponse()
 
@@ -51,7 +51,7 @@ def commands(user_details, text_body):
 
 def address(user_details, text_body):
     print('Found address')
-    account = nano.get_address(user_details.id)
+    account = nano.get_address(user_details.id + 1)
     resp = MessagingResponse()
     resp.message(f'{account}')
     return resp
@@ -59,7 +59,7 @@ def address(user_details, text_body):
 
 def history(user_details, text_body):
     print('Found address')
-    account = nano.get_address(user_details.id)
+    account = nano.get_address(user_details.id + 1)
     resp = MessagingResponse()
     resp.message(
         f'https://www.nanode.co/account/{account}')
@@ -69,7 +69,7 @@ def history(user_details, text_body):
 def balance(user_details, text_body):
     print('Found balance')
 
-    account = nano.get_address(user_details.id)
+    account = nano.get_address(user_details.id + 1)
     print(account)
     previous = nano.get_previous(str(account))
     print(previous)
@@ -78,7 +78,7 @@ def balance(user_details, text_body):
     pending = nano.get_pending(str(account))
     if (len(previous) == 0) and (len(pending) > 0):
         print("Opening Account")
-        nano.open_xrb(int(user_details.id), account)
+        nano.open_xrb(int(user_details.id + 1), account)
 
     print("Rx Pending: ", pending)
     pending = nano.get_pending(str(account))
@@ -87,7 +87,7 @@ def balance(user_details, text_body):
     while len(pending) > 0:
         pending = nano.get_pending(str(account))
         print(len(pending))
-        nano.receive_xrb(int(user_details.id), account)
+        nano.receive_xrb(int(user_details.id + 1), account)
 
     if len(previous) == 0:
         balance = "Empty"
@@ -117,7 +117,7 @@ def sendauthcode(user_details, text_body):
 
 def send(user_details, text_body):
     print('Found send')
-    account = nano.get_address(user_details.id)
+    account = nano.get_address(user_details.id + 1)
     components = text_body.split(" ")
 
     # Check amount is real
@@ -135,7 +135,7 @@ def send(user_details, text_body):
     if authcode == int(user_details.authcode):
         if destination[0] == "x":
             print("xrb addresses")
-            nano.send_xrb(destination, amount, account, user_details.id)
+            nano.send_xrb(destination, amount, account, user_details.id + 1)
             resp = MessagingResponse()
             new_authcode = authcode_gen_save(user_details)
 
@@ -211,14 +211,14 @@ def send(user_details, text_body):
 
 
 def claim(user_details, text_body):
-    faucet = SystemUser.get(SystemUser.name == "facuet")
-    print("Found claim")
-    account = nano.get_address(user_details.id)
+    faucet = nano.get_address(0)
+    print("Found faucet claim")
+    account = nano.get_address(user_details.id + 1)
     current_time = int(time.time())
     if int(user_details.claim_last) == 0:
         print("They can claim")
         # Check faucet balance
-        previous = nano.get_previous(str(faucet.id))
+        previous = nano.get_previous(str(faucet))
         faucet_bal = int(nano.get_balance(previous)) / \
             1000000000000000000000000
 
@@ -309,7 +309,7 @@ def recover(user_details, text_body):
     # Check recovery word
     try:
         rec_details = User.get(User.rec_word == rec_word_rx)
-        rec_account = nano.get_address(rec_details.id)
+        rec_account = nano.get_address(rec_details.id + 1)
 
         resp = MessagingResponse()
         new_authcode = authcode_gen_save(user_details)
