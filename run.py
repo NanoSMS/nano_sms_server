@@ -211,7 +211,7 @@ def send(user_details, text_body):
 
 
 def claim(user_details, text_body):
-    faucet = SystemUser.get(SystemUser.name == "facuet")
+    faucet = SystemUser.get(SystemUser.name == "faucet")
     print("Found claim")
     account = nano.get_address(user_details.id)
     current_time = int(time.time())
@@ -415,7 +415,7 @@ def sms_ahoy_reply():
     text_body = text_body.lower()
 
     components = text_body.split(" ")
-    amount = int(components[0]) * 1000000000000000000000000
+    #amount = int(components[0]) * 1000000000000000000000000
 
     if 'register' in text_body:
         return str(register(user_details, text_body))
@@ -458,7 +458,7 @@ def sms_ahoy_reply():
         resp = MessagingResponse()
 
         # Add a message
-        resp.message("Command not recognised, send " + commands +
+        resp.message("Command not recognised, send " + str(commands) +
                      "for a list of commands")
 
     return str(resp)
