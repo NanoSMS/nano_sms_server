@@ -184,7 +184,8 @@ class NanoFunctions:
 
     def get_work(self, frontier):
         uri = Config().get("work_uri")[0]
-        response = requests.post(uri + "/work", data = {'hash':frontier})
+        json_request = '{"hash" : "%s" }' % frontier
+        response = requests.post(uri + "/work", data = json_request)
         if not response.ok:
                 return None
         return json.loads(response.text)["work"]
