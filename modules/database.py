@@ -39,7 +39,13 @@ class TopupCards(BaseModel):
     cardsn = CharField(unique=True)
     claimed = BooleanField(default=False)
 
-tables = [SystemUser, User, TopupCards, ]
+
+class Alias(BaseModel):
+    phonenumber = CharField(unique=True)
+    address = CharField(unique=True)
+    alias = CharField(unique=True)
+
+tables = [SystemUser, User, TopupCards, Alias]
 
 
 if __name__ == "__main__":

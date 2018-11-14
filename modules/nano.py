@@ -1,481 +1,349 @@
-import json
-import requests
+import time, json, random
+from websocket import create_connection
+
 import binascii
-from modules.misc import Config
-from flask import request
-from pyblake2 import blake2b
 from bitstring import BitArray
-from flask_restful import Resource
-from flask_jsonpify import jsonify
+from pyblake2 import blake2b
 from nano25519.nano25519 import ed25519_oop as ed25519
+import ctypes, requests
 
-class NanoRPC:
-
-    # source: https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol
-    # makes nano node requests using RPC protocol
-
-    def __init__(self, uri):
-        self.uri = uri
-
-    def rpc_request(self, data):
-        data = json.dumps(data)
-        headers = {'Content-type': 'application/json', 'Accept': 'application/json'}
-        try:
-
-            response = requests.post(   self.uri, 
-                                        data = data, 
-                                        headers = headers)
-
-            if not response.ok:
-                return None
-            resp_dict = json.loads(response.text)
-        except:
-            resp_dict = {"message" : "Timeout or invalid uri"}
-        finally:
-            return resp_dict
-
-    def version(self):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#retrieve-node-versions
-        """
-        data = {"action"            : "version"}
-        return self.rpc_request(data)
-
-    def block_count(self):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#block-count
-        """
-        data = {"action"            : "block_count"}
-        return self.rpc_request(data)
-
-    def account_info(self, account):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#account-information
-        """
-        data = {"action"            : "account_info",
-                "representative"    : "true",
-                "account"           : account}
-        return self.rpc_request(data)
-
-    def accounts_pending(self, accounts, count = 1):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#accounts-pending
-        """
-        data = {"action"            : "accounts_pending",
-                "accounts"          : accounts,
-                "count"             : str(count)}
-        return self.rpc_request(data)
-
-    def block(self, block):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#retrieve-block
-        """
-        data = {"action"            : "block",
-                "hash"              : block}
-        return self.rpc_request(data)
-
-    def blocks_info(self, block):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#retrieve-multiple-blocks-with-additional-info
-        """
-        data = {"action"            : "blocks_info",
-                "hashes"            : [block]}
-        return self.rpc_request(data)
-
-    def block_confirm(self, block):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#block-confirm
-        """
-        data = {"action"            : "block_confirm",
-                "hash"              : block}
-        return self.rpc_request(data)
-
-    def block_account(self, block):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#block-account
-        """
-        data = {"action"            : "block_account",
-                "hash"              : block}
-        return self.rpc_request(data)
-
-    def key_expand(self, key):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#key-expand
-        """
-        data = {"action"            : "key_expand",
-                "key"               : key}
-        return self.rpc_request(data)
-    
-    def pending(self, account, count = 1):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#pending
-        """
-        data = {"action"            : "pending",
-                "account"           : account,
-                "count"             : str(count),
-                "source"            : "true"}
-        return self.rpc_request(data)
-    
-    def wallet_create(self):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#wallet-create
-        """
-        data = {"action"            : "wallet_create"}
-        return self.rpc_request(data)
-
-    def wallet_add_watch(self, wallet, account):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#wallet-add-watch-only-accounts
-        """
-        data = {"action"            : "wallet_add_watch",
-                "wallet"            : wallet,
-                "accounts"          : [account]}
-        return self.rpc_request(data)
-
-    def wallet_pending(self, wallet, count = 1):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#wallet-pending
-        """
-        data = {"action"            : "wallet_pending",
-                "wallet"            : wallet,
-                "count"             : str(count),
-                "source"            : "true"}
-        return self.rpc_request(data)
-
-    def process(self, block):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#process-block
-        """
-        data = {"action"            : "process",
-                "block"             : block}
-        return self.rpc_request(data)
-
-    def work_generate(self, _hash):
-        """
-        source:
-        https://github.com/nanocurrency/raiblocks/wiki/RPC-protocol#work-generate
-        """
-        data = {"action"            : "work_generate",
-                "hash"              : _hash}
-        return self.rpc_request(data)
+def private_public(private):
+    return ed25519.SigningKey(private).get_verifying_key().to_bytes()
 
 
-class NanoFunctions:
-
-    def __init__(self, uri):
-        self.rpc = NanoRPC(uri)
-
-    def private_to_public(self, private):
-        return ed25519.SigningKey(private).get_verifying_key().to_bytes()
-
-    def get_work(self, frontier):
-        uri = Config().get("work_uri")[0]
-        json_request = '{"hash" : "%s" }' % frontier
-        response = requests.post(uri + "/work", data = json_request)
-        if not response.ok:
-                return None
-        return json.loads(response.text)["work"]
-
-    def xrb_account(self, address):
-
-        # Transforms account form into hexadecimal format
-
-        if len(address) == 64 and (address[:4] == 'xrb_'):
-            acrop_key = address[4:-8]
-        elif len(address) == 65 and (address[:5] == 'nano_'):
-            acrop_key = address[5:-8]
-        else:
-            return None
-
+def xrb_account(address):
+    # Given a string containing an XRB address, confirm validity and
+    # provide resulting hex address
+    if len(address) == 64 and (address[:4] == 'xrb_'):
+        # each index = binary value, account_lookup[0] == '1'
         account_map = "13456789abcdefghijkmnopqrstuwxyz"
         account_lookup = {}
-        for i in range(0,32):
-            account_lookup[account_map[i]] = BitArray(uint=i,length=5)
-            
+        # populate lookup index with prebuilt bitarrays ready to append
+        for i in range(32):
+            account_lookup[account_map[i]] = BitArray(uint=i ,length=5)
+
+        # we want everything after 'xrb_' but before the 8-char checksum
+        acrop_key = address[4:-8]
+        # extract checksum
         acrop_check = address[-8:]
-            
+
+        # convert base-32 (5-bit) values to byte string by appending each
+        # 5-bit value to the bitstring, essentially bitshifting << 5 and
+        # then adding the 5-bit value.
         number_l = BitArray()
         for x in range(0, len(acrop_key)):
             number_l.append(account_lookup[acrop_key[x]])
+        # reduce from 260 to 256 bit (upper 4 bits are never used as account
+        # is a uint256)
         number_l = number_l[4:]
 
         check_l = BitArray()
         for x in range(0, len(acrop_check)):
             check_l.append(account_lookup[acrop_check[x]])
-        check_l.byteswap()
 
+        # reverse byte order to match hashing format
+        check_l.byteswap()
         result = number_l.hex.upper()
 
+        # verify checksum
         h = blake2b(digest_size=5)
         h.update(number_l.bytes)
         if (h.hexdigest() == check_l.hex):
             return result
+        else:
+            return False
+    else:
         return False
 
-    def account_xrb(self, account):
-
-        # Transforms hexadecimal form into account format
 
-        account_map = "13456789abcdefghijkmnopqrstuwxyz"
-        account_lookup = {}
-        for i in range(0,32):
-            account_lookup[BitArray(uint=i,length=5).bin] = account_map[i]
-            
-        account = BitArray(hex=account)
-        
-        h = blake2b(digest_size=5)
-        h.update(account.bytes)
-        checksum = BitArray(hex=h.hexdigest())
-            
-        checksum.byteswap()
-        encode_check = str()
-
-        for x in range(0, int(len(checksum.bin)/5)):
-            encode_check += account_lookup[checksum.bin[x*5:x*5+5]]
-        
-        encode_account = str()
-        while len(account.bin) < 260:
-            account = '0b0' + account
-        
-        for x in range(0, int(len(account.bin)/5)):
-            encode_account += account_lookup[account.bin[x*5:x*5+5]]
-
-        return 'xrb_'+encode_account+encode_check
-
+def account_xrb(account):
+    # Given a string containing a hex address, encode to public address
+    # format with checksum
+    # each index = binary value, account_lookup['00001'] == '3'
+    account_map = "13456789abcdefghijkmnopqrstuwxyz"
+    account_lookup = {}
+    # populate lookup index for binary string to base-32 string character
+    for i in range(32):
+        account_lookup[BitArray(uint=i ,length=5).bin] = account_map[i]
+    # hex string > binary
+    account = BitArray(hex=account)
+
+    # get checksum
+    h = blake2b(digest_size=5)
+    h.update(account.bytes)
+    checksum = BitArray(hex=h.hexdigest())
+
+    # encode checksum
+    # swap bytes for compatibility with original implementation
+    checksum.byteswap()
+    encode_check = ''
+    for x in range(0 ,int(len(checksum.bin ) /5)):
+        # each 5-bit sequence = a base-32 character from account_map
+        encode_check += account_lookup[checksum.bin[ x *5: x * 5 +5]]
+
+    # encode account
+    encode_account = ''
+    while len(account.bin) < 260:
+        # pad our binary value so it is 260 bits long before conversion
+        # (first value can only be 00000 '1' or 00001 '3')
+        account = '0b0' + account
+    for x in range(0 ,int(len(account.bin ) /5)):
+        # each 5-bit sequence = a base-32 character from account_map
+        encode_account += account_lookup[account.bin[ x *5: x * 5 +5]]
+
+    # build final address string
+    return 'xrb_' +encode_account +encode_check
+
+
+def seed_account(seed, index):
+    # Given an account seed and index #, provide the account private and
+    # public keys
+    h = blake2b(digest_size=32)
+
+    seed_data = BitArray(hex=seed)
+    seed_index = BitArray(int=index ,length=32)
+
+    h.update(seed_data.bytes)
+    h.update(seed_index.bytes)
+
+    account_key = BitArray(h.digest())
+    return account_key.bytes, private_public(account_key.bytes)
+
+
+def receive_xrb(index, account, wallet_seed):
+    ws = create_connection('ws://yapraiwallet.space:8000')
+
+    # Get pending blocks
+
+    rx_data = get_pending(str(account))
+    if len(rx_data) == 0:
+        return
+
+    for block in rx_data:
+        #print(block)
+        block_hash = block
+        #print(rx_data[block])
+        balance = int(rx_data[block]['amount'])
+        source = rx_data[block]['source']
+
+    previous = get_previous(str(account))
+
+    current_balance = get_balance(previous)
+    #print(current_balance)
+    new_balance = int(current_balance) + int(balance)
+    hex_balance = hex(new_balance)
+    #print(hex_balance)
+    hex_final_balance = hex_balance[2:].upper().rjust(32, '0')
+    #print(hex_final_balance)
+
+    priv_key, pub_key = seed_account(wallet_seed, int(index))
+    public_key = ed25519.SigningKey(priv_key).get_verifying_key().to_ascii(encoding="hex")
+
+    # print("Starting PoW Generation")
+    work = get_pow(previous)
+    # print("Completed PoW Generation")
 
-    def seed_account(self, seed, index):
+    # Calculate signature
+    bh = blake2b(digest_size=32)
+    bh.update(BitArray(hex='0x0000000000000000000000000000000000000000000000000000000000000006').bytes)
+    bh.update(BitArray(hex=xrb_account(account)).bytes)
+    bh.update(BitArray(hex=previous).bytes)
+    bh.update(BitArray(hex=xrb_account(account)).bytes)
+    bh.update(BitArray(hex=hex_final_balance).bytes)
+    bh.update(BitArray(hex=block_hash).bytes)
 
-        # Generates deterministic key set from seed and index
-
-        h = blake2b(digest_size=32)
+    sig = ed25519.SigningKey(priv_key +pub_key).sign(bh.digest())
+    signature = str(binascii.hexlify(sig), 'ascii')
 
-        seed_data = BitArray(hex=seed)
-        seed_index = BitArray(int=index ,length=32)
+    finished_block = '{ "type" : "state", "previous" : "%s", "representative" : "%s" , "account" : "%s", "balance" : "%s", "link" : "%s", \
+            "work" : "%s", "signature" : "%s" }' % \
+    (previous, account, account, new_balance, block_hash, work, signature)
 
-        h.update(seed_data.bytes)
-        h.update(seed_index.bytes)
+    #print(finished_block)
 
-        account_key = BitArray(h.digest())
+    data = json.dumps({'action': 'process', 'block': finished_block})
+    # print(data)
+    ws.send(data)
 
-        return account_key.bytes, self.private_to_public(account_key.bytes)
+    block_reply = ws.recv()
 
-    def sign_block(self, private_key, account, previous, representative, balance, link):
-        
-        # Returns universal block signature
+    #print(block_reply)
+    ws.close()
+    return str(balance)
 
-        public_key = self.private_to_public(private_key)
 
-        bh = blake2b(digest_size=32)
+def get_address(index, wallet_seed):
+    # Generate address
+    priv_key, pub_key = seed_account(wallet_seed, int(index))
+    public_key = str(binascii.hexlify(pub_key), 'ascii')
 
-        balance = int(balance)
-        balance = str(hex(balance)[2:])
-        for _ in range(32 - len(balance)):
-            balance = "0" + balance
+    account = account_xrb(str(public_key))
+    return account
 
-        hex_priv        = private_key.hex()
-        hex_pub         = public_key.hex()
 
-        priv_key        = BitArray(hex=hex_priv).bytes
-        pub_key         = BitArray(hex=hex_pub).bytes
+def open_xrb(index, account, wallet_seed):
+    ws = create_connection('ws://yapraiwallet.space:8000')
+    representative = 'xrb_1kd4h9nqaxengni43xy9775gcag8ptw8ddjifnm77qes1efuoqikoqy5sjq3'
+    # Get pending blocks
 
-        preamble        = BitArray(hex= (hex(6)[2:].rjust(64, '0')) ).bytes
-        account         = BitArray(hex=self.xrb_account(account)).bytes
-        previous        = BitArray(hex=previous).bytes
-        representative  = BitArray(hex=self.xrb_account(representative)).bytes
-        balance         = BitArray(hex=balance).bytes
-        link            = BitArray(hex=link).bytes
+    rx_data = get_pending(str(account))
+    for block in rx_data:
+        #print(block)
+        block_hash = block
+        print(rx_data[block])
+        balance = int(rx_data[block]['amount'])
+        print(balance)
+        source = rx_data[block]['source']
 
-        p = preamble + account + previous + representative + balance + link
-        bh.update(p)
+    hex_balance = hex(balance)
+    #print(hex_balance)
+    hex_final_balance = hex_balance[2:].upper().rjust(32, '0')
+    #print(hex_final_balance)
 
-        sig = ed25519.SigningKey(priv_key + pub_key).sign(bh.digest())
-        return sig.hex().upper()[:128]
-        
-    def work_threshold(self, check): 
-        if check > b'\xFF\xFF\xFF\xC0\x00\x00\x00\x00': 
-            return {"valid": "1"}
-        return {"valid": "0"}
+    priv_key, pub_key = seed_account(wallet_seed, int(index))
+    public_key = ed25519.SigningKey(priv_key).get_verifying_key().to_ascii(encoding="hex")
 
-    def work_validate(self, _hash, work):
+    # print("Starting PoW Generation")
+    work = get_pow(str(public_key, 'ascii'))
+    # print("Completed PoW Generation")
 
-        # Checks if PoW is valid
+    # Calculate signature
+    bh = blake2b(digest_size=32)
+    bh.update(BitArray(hex='0x0000000000000000000000000000000000000000000000000000000000000006').bytes)
+    bh.update(BitArray(hex=xrb_account(account)).bytes)
+    bh.update(BitArray(hex='0x0000000000000000000000000000000000000000000000000000000000000000').bytes)
+    bh.update(BitArray(hex=xrb_account(account)).bytes)
+    bh.update(BitArray(hex=hex_final_balance).bytes)
+    bh.update(BitArray(hex=block_hash).bytes)
 
-        work_data = bytearray.fromhex(work)
-        hash_data = bytearray.fromhex(_hash)
-        
-        h = blake2b(digest_size=8)
-        work_data.reverse()
-        h.update(work_data)
-        h.update(hash_data)
-        final = bytearray(h.digest())
-        final.reverse()
-    
-        return self.work_threshold(final)
+    sig = ed25519.SigningKey(priv_key + pub_key).sign(bh.digest())
+    signature = str(binascii.hexlify(sig), 'ascii')
 
-    def get_address(self, index):
+    finished_block = '{ "type" : "state", "previous" : "0000000000000000000000000000000000000000000000000000000000000000", "representative" : "%s" , "account" : "%s", "balance" : "%s", "link" : "%s", \
+            "work" : "%s", "signature" : "%s" }' % (account, account, balance, block_hash, work, signature)
 
-        # Generate address
+    #print(finished_block)
 
-        _, pub_key = self.seed_account(Config().get("seed"), index)
-        public_key = str(binascii.hexlify(pub_key), 'ascii')
-        account = self.account_xrb(str(public_key))
-        return account
+    data = json.dumps({'action': 'process', 'block': finished_block})
+    # print(data)
+    ws.send(data)
 
-    def get_previous(self, account):
+    block_reply = ws.recv()
 
-        try:
-            acc_info = self.rpc.account_info(account)
-            previous = acc_info["frontier"]
-            return previous
-        except:
-            return str()
+    #print(block_reply)
+    ws.close()
 
-    def get_balance(self, _hash):
 
-        try:
-            account         = self.rpc.block_account(_hash)["account"]
-            acc_info        = self.rpc.account_info(account)
-            current_balance = acc_info["balance"]
-            return current_balance
-        except:
-            return str(0)
+def send_xrb(dest_account, amount, account, index, wallet_seed):
+    ws = create_connection('ws://yapraiwallet.space:8000')
 
-    def get_pending(self, account):
+    representative = 'xrb_1kd4h9nqaxengni43xy9775gcag8ptw8ddjifnm77qes1efuoqikoqy5sjq3'
 
-        try:
-            pending = self.rpc.pending(account)
-            return pending["blocks"]
-        except:
-            return str()
+    previous = get_previous(str(account))
 
-    def assemble_block(self, account, previous, representative, balance, link, link_as_account, signature, work):
+    current_balance = get_balance(previous)
+    #print(current_balance)
+    new_balance = int(current_balance) - int(amount)
+    hex_balance = hex(new_balance)
 
-        # Returns universal blocks in string format
+    #print(hex_balance)
+    hex_final_balance = hex_balance[2:].upper().rjust(32, '0')
+    #print(hex_final_balance)
 
-        block = ('{\n    \"type\": \"state\",\n    \"account\": \"' + account + 
-        '\",\n    \"previous\": \"' + previous+ '\",\n    \"representative\": \"' + representative + 
-        '\",\n    \"balance\": \"' + balance + '\",\n    \"link\": \"' + link + 
-        '\",\n    \"link_as_account\": \"' + link_as_account + '\",\n    \"signature\": \"' 
-        + signature + '\",\n    \"work\": \"' + work + '\"\n}\n')
+    priv_key, pub_key = seed_account(wallet_seed, int(index))
+    public_key = ed25519.SigningKey(priv_key).get_verifying_key().to_ascii(encoding="hex")
 
-        return block
+    # print("Starting PoW Generation")
+    work = get_pow(previous)
+    # print("Completed PoW Generation")
 
-    def block_create(self, previous, account, representative, balance, link, key, work):
+    # Calculate signature
+    bh = blake2b(digest_size=32)
+    bh.update(BitArray(hex='0x0000000000000000000000000000000000000000000000000000000000000006').bytes)
+    bh.update(BitArray(hex=xrb_account(account)).bytes)
+    bh.update(BitArray(hex=previous).bytes)
+    bh.update(BitArray(hex=xrb_account(account)).bytes)
+    bh.update(BitArray(hex=hex_final_balance).bytes)
+    bh.update(BitArray(hex=xrb_account(dest_account)).bytes)
 
-        # Creates universal block with signature and PoW
+    sig = ed25519.SigningKey(priv_key + pub_key).sign(bh.digest())
+    signature = str(binascii.hexlify(sig), 'ascii')
 
-        signature = self.sign_block(key, account, previous, representative, balance, link)
-        link_as_account = self.account_xrb(link)
+    finished_block = '{ "type" : "state", "previous" : "%s", "representative" : "%s" , "account" : "%s", "balance" : "%s", "link" : "%s", \
+            "work" : "%s", "signature" : "%s" }' % (
+    previous, account, account, new_balance, dest_account, work, signature)
 
-        block = self.assemble_block(account, previous, representative, balance, link, link_as_account, signature, work)
-        return block
+    #print(finished_block)
 
-    def receive_assemble(self, account, key, block, work, previous, current_balance, representative):
+    data = json.dumps({'action': 'process', 'block': finished_block})
+    # print(data)
+    ws.send(data)
 
-        # Assembles receive block
+    block_reply = ws.recv()
 
-        blocks_info = self.rpc.block_confirm(block)
-        amount = int(blocks_info["blocks"][block]["amount"])
+    #print(block_reply)
+    ws.close()
 
-        new_balance = str(int(current_balance) + int(amount))
+def get_pow(hash):
+    work = ''
+    json_request = '{"hash" : "%s", "key" : "10A938977A8AA98D87BEFC1B14454A1"}' % hash
+    print(json_request)
+    print("Generating PoW via Work Server")
+    r = requests.post('http://178.62.11.37:5000/work', data = json_request)
+    print(r.text)
+    rx = r.json()
+    work = rx['work']
 
-        link = block
-        block = self.block_create(previous, account, representative, new_balance, link, key, work)
-        return self.rpc.process(block)
+    return work
 
-    def send_assemble(self, account, destination, key, amount, work, previous, current_balance, representative):
+def get_previous(account):
+    # Get account info
+    accounts_list = [account]
+    ws = create_connection('ws://yapraiwallet.space:8000')
 
-        # Assembles send block
+    data = json.dumps({'action': 'accounts_frontiers', 'accounts': accounts_list})
+    ws.send(data)
+    result = ws.recv()
+    #print(result)
+    account_info = json.loads(str(result))
 
-        new_balance = str(int(current_balance) - int(amount))
+    ws.close()
 
-        link = self.xrb_account(destination)
-        block = self.block_create(previous, account, representative, new_balance, link, key, work)
-        return self.rpc.process(block)
+    if len(account_info['frontiers']) == 0:
+        return ""
+    else:
+        previous = account_info['frontiers'][account]
+        return previous
 
-    def change_assemble(self, account, key, new_representative, previous, current_balance, work):
-        
-        # Assembles change block
 
-        link = hex(0)[2:].rjust(64, '0')
+def get_balance(hash):
+    # Get balance from hash
+    ws = create_connection('ws://yapraiwallet.space:8000')
+    data = json.dumps({'action': 'block', 'hash': hash})
 
-        block = self.block_create(previous, account, new_representative, current_balance, link, key, work)
-        return self.rpc.process(block)
+    ws.send(data)
 
-    def open_assemble(self, account, key, previous, block, new_representative, work):
+    block = ws.recv()
+    #print("Received '%s'" % block)
+    ws.close()
 
-        # Assembles open block
+    rx_data = json.loads(str(block))
+    new_rx = json.loads(str(rx_data['contents']))
+    return new_rx['balance']
 
-        blocks_info = self.rpc.blocks_info(block)
-        amount = int(blocks_info["blocks"][block]["amount"])
-        new_balance = str(amount)
 
-        link = block
-        block = self.block_create(previous, account, new_representative, new_balance, link, key, work)
-        return self.rpc.process(block)
+def get_pending(account):
+    # Get pending blocks
+    ws = create_connection('ws://yapraiwallet.space:8000')
+    data = json.dumps({'action': 'pending', 'account': account, "count": "1", "source": "true"})
 
-    def send_xrb(self, dest_account, amount, account, index):
+    ws.send(data)
 
-        private_key, _  = self.seed_account(Config().get("seed"), index)
+    pending_blocks = ws.recv()
+    #print("Received '%s'" % pending_blocks)
 
-        acc_info        = self.rpc.account_info(account)
-        previous        = acc_info["frontier"]
-        current_balance = acc_info["balance"]
-        representative  = acc_info["representative"]
-        work            = self.get_work(previous)
+    rx_data = json.loads(str(pending_blocks))
+    ws.close()
 
-        self.send_assemble(account, dest_account, private_key, amount, work, previous, current_balance, representative)
+    return rx_data['blocks']
 
-    def receive_xrb(self, index, account):
-
-        private_key, _  = self.seed_account(Config().get("seed"), index)
-
-        blocks          = self.rpc.pending(account)
-        block           = list(blocks.keys())[0]
-
-        acc_info        = self.rpc.account_info(account)
-        previous        = acc_info["frontier"]
-        current_balance = acc_info["balance"]
-        representative  = acc_info["representative"]
-        work            = self.get_work(previous)
-
-        self.receive_assemble(account, private_key, block, work, previous, current_balance, representative)
-
-    def open_xrb(self, index, account):
-
-        private_key, public_key  = self.seed_account(Config().get("seed"), index)
-
-        new_representative = "xrb_1kd4h9nqaxengni43xy9775gcag8ptw8ddjifnm77qes1efuoqikoqy5sjq3"
-
-        blocks          = self.rpc.accounts_pending([account], 1)["blocks"]
-        block           = blocks[account][0]
-
-        previous        = hex(0)[2:].rjust(64, '0')
-        work            = self.get_work(public_key.hex().upper())
-
-        self.open_assemble(account, private_key, previous, block, new_representative, work)
-
-    def change_xrb(self, index, account, new_representative):
-
-        private_key, _  = self.seed_account(Config().get("seed"), index)
-
-        acc_info        = self.rpc.account_info(account)
-        previous        = acc_info["frontier"]
-        current_balance = acc_info["balance"]
-        work            = self.get_work(previous)
-
-        self.change_assemble(account, private_key, new_representative, previous, current_balance, work)

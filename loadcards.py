@@ -3,14 +3,16 @@ from datetime import datetime, timedelta
 
 db.connect()
 
+
 #Placeholders, for example only
+print("loading cards... ")
+
 load_cards = [
-	{'cardcode': 'AAA123', 'cardvalue': 100, 'cardsn': 'NANO-S-TEST', 'claimed': False},
-    {'cardcode': 'BBB123', 'cardvalue': 1, 'cardsn': 'NANO-S-001', 'claimed': False},
-    {'cardcode': 'CCC123', 'cardvalue': 2, 'cardsn': 'NANO-S-002', 'claimed': False},
-    {'cardcode': 'DDD123', 'cardvalue': 3, 'cardsn': 'NANO-S-003', 'claimed': False}
-    # ...
+    {'cardcode': 'PNN189', 'cardvalue': 1, 'cardsn': 'NANO-A-154', 'claimed' :False},
+    {'cardcode': 'KSL165', 'cardvalue': 2, 'cardsn': 'NANO-A-155', 'claimed' :False},
+    {'cardcode': 'ERH498', 'cardvalue': 3, 'cardsn': 'NANO-A-156', 'claimed' :False}
+
 ]
 
-print("loading cards... ")
 TopupCards.insert_many(load_cards).execute()
+print("Success!")
